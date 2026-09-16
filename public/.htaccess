@@ -1,7 +1,7 @@
 # ==============================================================================
 # SIABDES Belega (Sistem Absensi Digital Rapat Desa Belega)
 # Konfigurasi Apache Web Server (.htaccess)
-# Domain: https://siabdes.belega.id/
+# Domain: siabdes.belega.id / www.siabdes.belega.id
 # ==============================================================================
 
 <IfModule mod_rewrite.c>
@@ -9,11 +9,14 @@
   RewriteBase /
 
   # ----------------------------------------------------------------------------
-  # 1. PAKSA PENGALIHAN DARI HTTP KE HTTPS (Port 80 -> 443 / SSL)
+  # 1. PENGALIHAN HTTP KE HTTPS (ANTI REDIRECT LOOP / BEBAS ERR_TOO_MANY_REDIRECTS)
   # ----------------------------------------------------------------------------
-  # Mengalihkan seluruh lalu lintas http://siabdes.belega.id ke https://siabdes.belega.id
-  RewriteCond %{HTTPS} off [OR]
-  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  # Hanya alihkan jika koneksi BENAR-BENAR HTTP murni (bukan HTTPS dan bukan Port 443)
+  RewriteCond %{HTTPS} !on
+  RewriteCond %{SERVER_PORT} !^443$
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+  RewriteCond %{HTTP:X-Forwarded-SSL} !on [NC]
+  RewriteCond %{HTTP:CF-Visitor} !'"scheme":"https"' [NC]
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
   # ----------------------------------------------------------------------------
@@ -27,16 +30,13 @@
 </IfModule>
 
 # ------------------------------------------------------------------------------
-# 3. HEADER KEAMANAN TINGKAT TINGGI (Security Headers)
+# 3. HEADER KEAMANAN
 # ------------------------------------------------------------------------------
 <IfModule mod_headers.c>
-  # HTTP Strict Transport Security (HSTS) - Paksa HTTPS selama 1 tahun
-  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=HTTPS
-
   # Cegah MIME-Type Sniffing
   Header set X-Content-Type-Options "nosniff"
 
-  # Perlindungan Clickjacking (hanya izinkan frame dari origin yang sama)
+  # Perlindungan Clickjacking
   Header set X-Frame-Options "SAMEORIGIN"
 
   # Referrer Policy
