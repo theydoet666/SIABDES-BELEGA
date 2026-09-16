@@ -114,16 +114,32 @@ export async function kirimCheckin(payload) {
   try {
     const blobTtd = base64KeBlob(ttd_base64);
     if (blobTtd) {
-      const { error: errUploadTtd } = await supabase.storage
+      // Prioritas 1: Upload langsung (upsert: false) agar aman dari restriksi RLS SELECT/UPDATE pada akun anonim
+      let { error: errUploadTtd } = await supabase.storage
         .from('bukti')
-        .upload(ttdPath, blobTtd, { contentType: 'image/png', upsert: true });
+        .upload(ttdPath, blobTtd, { contentType: 'image/png', upsert: false });
+
+      // Prioritas 2: Jika file sudah ada di server (status 409), lakukan update/timpa
+      if (
+        errUploadTtd &&
+        (errUploadTtd.message?.includes('already exists') ||
+          errUploadTtd.statusCode === '409' ||
+          errUploadTtd.status === 409)
+      ) {
+        const { error: errUpdateTtd } = await supabase.storage
+          .from('bukti')
+          .update(ttdPath, blobTtd, { contentType: 'image/png', upsert: true });
+        errUploadTtd = errUpdateTtd;
+      }
 
       if (errUploadTtd) {
-        console.warn('Peringatan upload TTD ke storage bukti:', errUploadTtd.message);
+        console.error('Peringatan upload TTD ke storage bukti:', errUploadTtd.message || errUploadTtd);
+      } else {
+        console.info('Tanda tangan digital berhasil diunggah ke storage bukti:', ttdPath);
       }
     }
   } catch (storageErr) {
-    console.warn('Lewati upload storage TTD:', storageErr);
+    console.error('Kendala saat memproses upload storage TTD:', storageErr);
   }
 
   if (foto_base64) {
@@ -131,17 +147,31 @@ export async function kirimCheckin(payload) {
       fotoPath = `${rapat.id}/${idPrefix}/foto.jpg`;
       const blobFoto = base64KeBlob(foto_base64);
       if (blobFoto) {
-        const { error: errUploadFoto } = await supabase.storage
+        let { error: errUploadFoto } = await supabase.storage
           .from('bukti')
-          .upload(fotoPath, blobFoto, { contentType: 'image/jpeg', upsert: true });
+          .upload(fotoPath, blobFoto, { contentType: 'image/jpeg', upsert: false });
+
+        if (
+          errUploadFoto &&
+          (errUploadFoto.message?.includes('already exists') ||
+            errUploadFoto.statusCode === '409' ||
+            errUploadFoto.status === 409)
+        ) {
+          const { error: errUpdateFoto } = await supabase.storage
+            .from('bukti')
+            .update(fotoPath, blobFoto, { contentType: 'image/jpeg', upsert: true });
+          errUploadFoto = errUpdateFoto;
+        }
 
         if (errUploadFoto) {
-          console.warn('Peringatan upload foto ke storage bukti:', errUploadFoto.message);
+          console.error('Peringatan upload foto ke storage bukti:', errUploadFoto.message || errUploadFoto);
           fotoPath = null;
+        } else {
+          console.info('Foto kehadiran berhasil diunggah ke storage bukti:', fotoPath);
         }
       }
     } catch (storageErr) {
-      console.warn('Lewati upload storage foto:', storageErr);
+      console.error('Kendala saat memproses upload storage foto:', storageErr);
       fotoPath = null;
     }
   }
