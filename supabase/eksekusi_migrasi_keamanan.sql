@@ -83,3 +83,30 @@ end;
 $$;
 
 grant execute on function public.ambil_riwayat_undangan_unik() to authenticated;
+
+-- 4. Izinkan pembacaan rapat publik (untuk scan QR Code peserta anonim)
+drop policy if exists "siapapun boleh membaca rapat publik" on rapat;
+create policy "siapapun boleh membaca rapat publik" on rapat
+  for select using (status in ('dibuka', 'ditutup'));
+
+-- 5. Perbarui fungsi info_rapat agar mengembalikan id & kode rapat
+create or replace function public.info_rapat(p_kode text)
+returns table (
+  id uuid,
+  kode text,
+  judul text,
+  tanggal date,
+  jam_mulai time,
+  tempat text,
+  penyelenggara text,
+  status status_rapat
+)
+language sql stable security definer set search_path = public as $$
+  select r.id, r.kode, r.judul, r.tanggal, r.jam_mulai, r.tempat, r.penyelenggara, r.status
+  from public.rapat r
+  where upper(r.kode) = upper(p_kode)
+    and r.status in ('dibuka', 'ditutup');
+$$;
+
+revoke all on function public.info_rapat(text) from public;
+grant execute on function public.info_rapat(text) to anon, authenticated;

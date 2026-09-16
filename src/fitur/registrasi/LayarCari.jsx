@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cariUndangan } from '../../lib/pencarian.js';
+import { supabase } from '../../lib/supabase.js';
 import { Lencana } from '../../komponen/umum/Lencana.jsx';
 
 export function LayarCari({
@@ -16,17 +17,41 @@ export function LayarCari({
 
   // Debounce pencarian 200 ms (CR-01)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (kueri.trim().length >= 2) {
-        const hasil = cariUndangan(daftarUndangan, kueri.trim(), 6);
-        setHasilPencarian(hasil);
+    let aktif = true;
+    const timer = setTimeout(async () => {
+      const q = kueri.trim();
+      if (q.length >= 2) {
+        if (daftarUndangan && daftarUndangan.length > 0) {
+          const hasil = cariUndangan(daftarUndangan, q, 6);
+          if (aktif) setHasilPencarian(hasil);
+        } else if (rapat?.kode) {
+          try {
+            const { data: hasilRpc, error: errRpc } = await supabase.rpc('cari_undangan', {
+              p_kode: rapat.kode.toUpperCase(),
+              p_kueri: q,
+            });
+            if (aktif && !errRpc && Array.isArray(hasilRpc)) {
+              setHasilPencarian(
+                hasilRpc.map((item) => ({
+                  ...item,
+                  sudahHadir: Boolean(item.sudah_hadir || item.sudahHadir),
+                }))
+              );
+            }
+          } catch (err) {
+            console.warn('Pencarian undangan daring gagal:', err);
+          }
+        }
       } else {
-        setHasilPencarian([]);
+        if (aktif) setHasilPencarian([]);
       }
     }, 200);
 
-    return () => clearTimeout(timer);
-  }, [kueri, daftarUndangan]);
+    return () => {
+      aktif = false;
+      clearTimeout(timer);
+    };
+  }, [kueri, daftarUndangan, rapat?.kode]);
 
   return (
     <div className="w-full space-y-6">
@@ -93,7 +118,7 @@ export function LayarCari({
           </div>
 
           {hasilPencarian.map((orang) => {
-            const sudahHadir = orang.sudahHadir;
+            const sudahHadir = Boolean(orang.sudahHadir || orang.sudah_hadir);
 
             return (
               <div

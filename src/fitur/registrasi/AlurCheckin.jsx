@@ -60,16 +60,38 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
     try {
       const kodeUpper = kode.toUpperCase();
 
-      // 1. Ambil data rapat dari Supabase
-      const { data: dataRapat, error: errRapat } = await supabase
+      // 1. Ambil data rapat dari Supabase (dukung query langsung & fallback RPC info_rapat untuk peserta via QR Code)
+      let dataRapat = null;
+      const { data: dataRapatQuery } = await supabase
         .from('rapat')
         .select('*')
         .eq('kode', kodeUpper)
         .maybeSingle();
 
-      if (errRapat || !dataRapat) {
+      if (dataRapatQuery) {
+        dataRapat = dataRapatQuery;
+      } else {
+        // Fallback untuk akses peserta / QR Code anonim
+        const { data: infoRpc } = await supabase
+          .rpc('info_rapat', { p_kode: kodeUpper });
+
+        if (infoRpc && infoRpc.length > 0) {
+          dataRapat = {
+            id: infoRpc[0].id || null,
+            kode: kodeUpper,
+            judul: infoRpc[0].judul,
+            tanggal: infoRpc[0].tanggal,
+            jam_mulai: infoRpc[0].jam_mulai,
+            tempat: infoRpc[0].tempat,
+            penyelenggara: infoRpc[0].penyelenggara,
+            status: infoRpc[0].status,
+          };
+        }
+      }
+
+      if (!dataRapat) {
         if (!rapatLokal) {
-          setPesanGalat('Rapat dengan kode tersebut tidak ditemukan. Periksa kembali tautan Anda.');
+          setPesanGalat('Rapat dengan kode tersebut tidak ditemukan atau belum dibuka. Periksa kembali tautan atau pindai ulang QR.');
         }
         setMemuatJaringan(false);
         return;
@@ -77,16 +99,23 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
 
       setRapatDaring(dataRapat);
 
-      // 2. Ambil daftar undangan dari Supabase
-      const { data: dataUndangan, error: errUnd } = await supabase
-        .from('undangan')
-        .select(`
-          id, nama, jabatan, instansi, hp, sumber,
-          kehadiran (
-            id, dibatalkan
-          )
-        `)
-        .eq('rapat_id', dataRapat.id);
+      // 2. Ambil daftar undangan dari Supabase (jika diizinkan oleh RLS)
+      let dataUndangan = [];
+      if (dataRapat.id) {
+        const { data: dataUndanganQuery } = await supabase
+          .from('undangan')
+          .select(`
+            id, nama, jabatan, instansi, hp, sumber,
+            kehadiran (
+              id, dibatalkan
+            )
+          `)
+          .eq('rapat_id', dataRapat.id);
+
+        if (Array.isArray(dataUndanganQuery)) {
+          dataUndangan = dataUndanganQuery;
+        }
+      }
 
       // 3. Ambil daftar kehadiran yang tercatat melalui RPC aman (SECURITY DEFINER)
       const setIdHadirServer = new Set();

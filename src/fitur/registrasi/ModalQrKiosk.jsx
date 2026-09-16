@@ -8,7 +8,14 @@ export function ModalQrKiosk({ buka, tutup, rapat }) {
   const [tersalin, setTersalin] = useState(false);
 
   const kodeRapat = rapat?.kode || '';
-  const urlMandiri = `${window.location.origin}/r/${kodeRapat}`;
+  const hostAsal = window.location.origin;
+  const domainPublik = import.meta.env.VITE_APP_URL || 'https://siabdes.belega.id';
+  const basisUrl =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? domainPublik
+      : hostAsal;
+
+  const urlMandiri = `${basisUrl}/r/${kodeRapat}`;
 
   useEffect(() => {
     if (kodeRapat) {

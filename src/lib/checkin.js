@@ -52,14 +52,30 @@ export async function kirimCheckin(payload) {
     throw err;
   }
 
-  // 1. Dapatkan info rapat
-  const { data: rapat, error: errRapat } = await supabase
+  // 1. Dapatkan info rapat (bisa query langsung atau RPC info_rapat jika anonim)
+  let rapat = null;
+  const { data: rapatQuery, error: errRapat } = await supabase
     .from('rapat')
     .select('id, kode, status')
     .eq('kode', kode_rapat.toUpperCase())
     .maybeSingle();
 
-  if (errRapat) {
+  if (rapatQuery) {
+    rapat = rapatQuery;
+  } else {
+    // Fallback RPC untuk pemanggil anonim / peserta via QR code
+    const { data: infoRpc } = await supabase
+      .rpc('info_rapat', { p_kode: kode_rapat.toUpperCase() });
+    if (infoRpc && infoRpc.length > 0) {
+      rapat = {
+        id: infoRpc[0].id || null,
+        kode: kode_rapat.toUpperCase(),
+        status: infoRpc[0].status,
+      };
+    }
+  }
+
+  if (errRapat && !rapat) {
     console.warn('Kendala pembacaan data rapat:', errRapat);
   }
 

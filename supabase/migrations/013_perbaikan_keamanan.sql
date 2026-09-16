@@ -97,3 +97,33 @@ $$;
 
 -- Hanya izinkan peran authenticated (operator/admin yang sah)
 grant execute on function public.ambil_riwayat_undangan_unik() to authenticated;
+
+-- ==============================================================================
+-- 3. PERBAIKAN AKSES QR CODE & JALUR MANDIRI PESERTA (ANONIM)
+-- ==============================================================================
+-- Izinkan client anonim membaca data rapat yang berstatus 'dibuka' atau 'ditutup'
+drop policy if exists "siapapun boleh membaca rapat publik" on rapat;
+create policy "siapapun boleh membaca rapat publik" on rapat
+  for select using (status in ('dibuka', 'ditutup'));
+
+-- Perbarui info_rapat agar menyertakan id & kode rapat untuk alur mandiri
+create or replace function public.info_rapat(p_kode text)
+returns table (
+  id uuid,
+  kode text,
+  judul text,
+  tanggal date,
+  jam_mulai time,
+  tempat text,
+  penyelenggara text,
+  status status_rapat
+)
+language sql stable security definer set search_path = public as $$
+  select r.id, r.kode, r.judul, r.tanggal, r.jam_mulai, r.tempat, r.penyelenggara, r.status
+  from public.rapat r
+  where upper(r.kode) = upper(p_kode)
+    and r.status in ('dibuka', 'ditutup');
+$$;
+
+revoke all on function public.info_rapat(text) from public;
+grant execute on function public.info_rapat(text) to anon, authenticated;

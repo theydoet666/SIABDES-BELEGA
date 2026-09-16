@@ -7,9 +7,18 @@ import { Dialog } from '../../komponen/umum/Dialog.jsx';
 export function PanelQr({ rapat }) {
   const [dataUrlQr, setDataUrlQr] = useState('');
   const [bukaModalCetak, setBukaModalCetak] = useState(false);
+  const [salinSukses, setSalinSukses] = useState(false);
   const printAreaRef = useRef(null);
 
-  const urlRegistrasi = `${window.location.origin}/r/${rapat.kode}`;
+  // Jika dibuka di localhost, gunakan domain publik resmi agar QR Code yang dipindai kamera HP bisa dibuka
+  const hostAsal = window.location.origin;
+  const domainPublik = import.meta.env.VITE_APP_URL || 'https://siabdes.belega.id';
+  const basisUrl =
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? domainPublik
+      : hostAsal;
+
+  const urlRegistrasi = `${basisUrl}/r/${rapat?.kode || ''}`;
 
   useEffect(() => {
     if (rapat?.kode) {
@@ -25,6 +34,16 @@ export function PanelQr({ rapat }) {
         .catch(console.error);
     }
   }, [rapat?.kode, urlRegistrasi]);
+
+  const tanganiSalin = async () => {
+    try {
+      await navigator.clipboard.writeText(urlRegistrasi);
+      setSalinSukses(true);
+      setTimeout(() => setSalinSukses(false), 2000);
+    } catch {
+      // Abaikan jika clipboard tidak didukung
+    }
+  };
 
   const tanganiCetak = () => {
     window.print();
@@ -47,6 +66,20 @@ export function PanelQr({ rapat }) {
               Membuat QR...
             </div>
           )}
+        </div>
+
+        {/* URL Target & Salin Tautan */}
+        <div className="mb-3 max-w-full rounded-xl bg-kertas p-2 text-xs border border-garis">
+          <div className="truncate font-mono text-[11px] text-daun-tua font-bold">
+            {urlRegistrasi}
+          </div>
+          <button
+            type="button"
+            onClick={tanganiSalin}
+            className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-daun hover:underline"
+          >
+            {salinSukses ? '✓ Tautan Disalin' : '📋 Salin Tautan'}
+          </button>
         </div>
 
         {/* Kode Rapat */}
