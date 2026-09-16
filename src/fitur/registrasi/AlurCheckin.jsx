@@ -160,7 +160,7 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
         // Abaikan jika Dexie belum siap
       }
 
-      if (!errUnd && dataUndangan) {
+      if (Array.isArray(dataUndangan) && dataUndangan.length > 0) {
         const hasil = dataUndangan.map((u) => {
           const directHadir = Boolean(u.kehadiran?.some((k) => !k.dibatalkan));
           const idHadir = setIdHadirServer.has(u.id);
@@ -178,8 +178,8 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
         // Cache ke IndexedDB untuk mode offline kiosk (OF-02)
         await simpanCacheRapatLokal(dataRapat, hasil);
       }
-    } catch {
-      // Jika jaringan putus saat fetch, abaikan dan andalkan cache lokal
+    } catch (err) {
+      console.warn('Kendala sinkronisasi data awal:', err);
     } finally {
       setMemuatJaringan(false);
     }
