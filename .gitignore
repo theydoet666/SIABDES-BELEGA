@@ -7,26 +7,38 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies & Build Output
+node_modules/
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# Editor directories and system files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Environment
+# Environment & Sensitive Files (Penting: cegah publikasi credential)
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
 
-# Supabase temp
+# Database Dumps & Temporary files
+*.bak
+*.backup
+*.dump
 supabase/.temp/
+.temp/
