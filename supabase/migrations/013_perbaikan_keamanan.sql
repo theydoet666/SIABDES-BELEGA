@@ -59,8 +59,7 @@ create policy "perbarui bukti aman" on storage.objects
 -- 2. PERBAIKAN K-02: Cabut Akses Anonim dari RPC 'ambil_riwayat_undangan_unik'
 -- ==============================================================================
 -- Cabut akses dari public dan anonim untuk mencegah kebocoran data kontak (nomor HP)
-revoke all on function public.ambil_riwayat_undangan_unik() from public;
-revoke all on function public.ambil_riwayat_undangan_unik() from anon;
+drop function if exists public.ambil_riwayat_undangan_unik();
 
 -- Perbarui fungsi dengan pengecekan internal pengguna aktif (operator / admin)
 create or replace function public.ambil_riwayat_undangan_unik()
@@ -95,6 +94,8 @@ begin
 end;
 $$;
 
+revoke all on function public.ambil_riwayat_undangan_unik() from public;
+revoke all on function public.ambil_riwayat_undangan_unik() from anon;
 -- Hanya izinkan peran authenticated (operator/admin yang sah)
 grant execute on function public.ambil_riwayat_undangan_unik() to authenticated;
 
@@ -107,6 +108,8 @@ create policy "siapapun boleh membaca rapat publik" on rapat
   for select using (status in ('dibuka', 'ditutup'));
 
 -- Perbarui info_rapat agar menyertakan id & kode rapat untuk alur mandiri
+drop function if exists public.info_rapat(text);
+
 create or replace function public.info_rapat(p_kode text)
 returns table (
   id uuid,

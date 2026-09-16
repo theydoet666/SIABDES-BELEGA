@@ -48,8 +48,7 @@ create policy "perbarui bukti aman" on storage.objects
   );
 
 -- 3. Perketat akses RPC riwayat undangan agar nomor HP tidak bocor ke publik/anonim
-revoke all on function public.ambil_riwayat_undangan_unik() from public;
-revoke all on function public.ambil_riwayat_undangan_unik() from anon;
+drop function if exists public.ambil_riwayat_undangan_unik();
 
 create or replace function public.ambil_riwayat_undangan_unik()
 returns table (
@@ -82,6 +81,8 @@ begin
 end;
 $$;
 
+revoke all on function public.ambil_riwayat_undangan_unik() from public;
+revoke all on function public.ambil_riwayat_undangan_unik() from anon;
 grant execute on function public.ambil_riwayat_undangan_unik() to authenticated;
 
 -- 4. Izinkan pembacaan rapat publik (untuk scan QR Code peserta anonim)
@@ -90,6 +91,8 @@ create policy "siapapun boleh membaca rapat publik" on rapat
   for select using (status in ('dibuka', 'ditutup'));
 
 -- 5. Perbarui fungsi info_rapat agar mengembalikan id & kode rapat
+drop function if exists public.info_rapat(text);
+
 create or replace function public.info_rapat(p_kode text)
 returns table (
   id uuid,
