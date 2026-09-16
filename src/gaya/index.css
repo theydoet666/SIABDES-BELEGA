@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-kertas text-tinta font-sans antialiased;
+  }
+}
+
+/* Aturan cetak untuk lembar daftar hadir resmi */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 20mm 20mm 20mm 20mm; /* Margin 2cm: Atas 2, Kanan 2, Bawah 2, Kiri 2 */
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .tanpa-cetak {
+    display: none !important;
+  }
+
+  .lembar-dokumen-cetak {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Pengulangan header tabel pada setiap halaman baru (PRD KL-04) */
+  thead {
+    display: table-header-group !important;
+  }
+
+  /* Mencegah pemotongan baris tabel antar halaman (PRD KL-04) */
+  tr,
+  tbody tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Mencegah pemotongan pada blok tanda tangan dan footer dokumen */
+  .blok-ttd-rapat,
+  .blok-ttd-perbekel,
+  .footer-dokumen-cetak,
+  .hindari-potong {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
