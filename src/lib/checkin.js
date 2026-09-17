@@ -30,8 +30,7 @@ export function base64KeBlob(dataUrl) {
 
 /**
  * Mengirim payload check-in ke Supabase
- * Prioritas 1: PostgreSQL RPC 'proses_checkin' (SECURITY DEFINER)
- * Prioritas 2: Fallback Query Tabel Langsung
+ * Jalur Tunggal & Aman: PostgreSQL RPC 'proses_checkin' (SECURITY DEFINER & Rate-Limited)
  */
 export async function kirimCheckin(payload) {
   const {

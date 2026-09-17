@@ -17,10 +17,11 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Verifikasi otorisasi Bearer Token (Service Role / Cron Secret)
+  // Verifikasi otorisasi Bearer Token wajib persis cocok dengan Service Role Key (Temuan #15)
   const authHeader = req.headers.get('Authorization') || '';
-  if (!authHeader.includes(SUPABASE_SERVICE_ROLE_KEY) && !authHeader.includes('Bearer ')) {
-    // Jika tidak ada header yang valid, tolak
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+  if (!SUPABASE_SERVICE_ROLE_KEY || token !== SUPABASE_SERVICE_ROLE_KEY) {
     return new Response(JSON.stringify({ error: 'Akses ditolak: Autentikasi service role diperlukan.' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
