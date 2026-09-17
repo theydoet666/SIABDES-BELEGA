@@ -6,11 +6,13 @@ import { KelolaOperator } from './KelolaOperator.jsx';
 import { PengaturanRetensi } from './PengaturanRetensi.jsx';
 import { TabelAuditLog } from './TabelAuditLog.jsx';
 import { PengaturanIdentitas } from './PengaturanIdentitas.jsx';
+import { ModalUbahKataSandi } from '../auth/ModalUbahKataSandi.jsx';
 
 export default function HalamanPengaturan() {
-  const { profil } = useAuth();
+  const { profil, pengguna } = useAuth();
   const { pengaturan } = usePengaturan();
   const [tabAktif, setTabAktif] = useState('identitas'); // 'identitas' | 'operator' | 'retensi' | 'audit'
+  const [bukaModalSandi, setBukaModalSandi] = useState(false);
 
   return (
     <div className="min-h-screen bg-kertas pb-16">
@@ -32,7 +34,16 @@ export default function HalamanPengaturan() {
             </div>
           </div>
 
-          <div className="text-right">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBukaModalSandi(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-garis bg-white px-3 py-1.5 text-xs font-semibold text-tinta hover:bg-kertas transition shadow-sm"
+              title="Ubah kata sandi akun Anda"
+            >
+              <span>🔑</span>
+              <span className="hidden sm:inline">Ubah Sandi Saya</span>
+            </button>
             <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-900 border border-amber-300">
               👑 Administrator
             </span>
@@ -111,6 +122,13 @@ export default function HalamanPengaturan() {
           </Link>
         </footer>
       </main>
+
+      {/* Modal Ubah Kata Sandi Akun Saat Ini */}
+      <ModalUbahKataSandi
+        buka={bukaModalSandi}
+        tutup={() => setBukaModalSandi(false)}
+        emailPengguna={profil?.email || pengguna?.email || ''}
+      />
     </div>
   );
 }

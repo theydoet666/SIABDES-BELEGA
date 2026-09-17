@@ -31,6 +31,24 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
   const [sedangSimpan, setSedangSimpan] = useState(false);
   const [pesanGalat, setPesanGalat] = useState('');
 
+  // Reset password state
+  const [bukaModalReset, setBukaModalReset] = useState(false);
+  const [targetUserReset, setTargetUserReset] = useState(null);
+  const [kataSandiReset, setKataSandiReset] = useState('');
+  const [tampilkanSandiReset, setTampilkanSandiReset] = useState(false);
+  const [sedangReset, setSedangReset] = useState(false);
+  const [pesanGalatReset, setPesanGalatReset] = useState('');
+
+  // Edit operator state
+  const [bukaModalEdit, setBukaModalEdit] = useState(false);
+  const [targetUserEdit, setTargetUserEdit] = useState(null);
+  const [namaEdit, setNamaEdit] = useState('');
+  const [emailEdit, setEmailEdit] = useState('');
+  const [peranEdit, setPeranEdit] = useState('operator');
+  const [statusAktifEdit, setStatusAktifEdit] = useState(true);
+  const [sedangSimpanEdit, setSedangSimpanEdit] = useState(false);
+  const [pesanGalatEdit, setPesanGalatEdit] = useState('');
+
   // Pagination state
   const [halamanAktif, setHalamanAktif] = useState(1);
 
@@ -143,6 +161,156 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
       await muatPengguna();
     } catch (err) {
       await notifikasiGalat('Gagal', `Gagal mengubah peran: ${err.message}`);
+    }
+  };
+
+  // Buka Dialog Reset Kata Sandi Operator
+  const bukaDialogResetSandi = (user) => {
+    setTargetUserReset(user);
+    setKataSandiReset('');
+    setPesanGalatReset('');
+    setTampilkanSandiReset(false);
+    setBukaModalReset(true);
+  };
+
+  // Tangani Eksekusi Reset Kata Sandi Operator
+  const tanganiResetSandi = async (e) => {
+    e.preventDefault();
+    setPesanGalatReset('');
+
+    if (!kataSandiReset || kataSandiReset.length < 6) {
+      setPesanGalatReset('Kata sandi baru minimal 6 karakter.');
+      return;
+    }
+
+    setSedangReset(true);
+
+    try {
+      const { error } = await supabase.rpc('admin_ganti_password_operator', {
+        p_user_id: targetUserReset.id,
+        p_password_baru: kataSandiReset,
+      });
+
+      if (error) {
+        if (error.message && (error.message.includes('function') || error.message.includes('admin_ganti_password_operator'))) {
+          throw new Error('Fungsi database admin_ganti_password_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/016_ganti_password.sql di Supabase SQL Editor.');
+        }
+        throw error;
+      }
+
+      await notifikasiSukses(
+        'Kata Sandi Berhasil Diperbarui',
+        `Kata sandi untuk operator <strong>"${targetUserReset.nama}"</strong> berhasil diubah.`
+      );
+
+      setBukaModalReset(false);
+      setTargetUserReset(null);
+      setKataSandiReset('');
+    } catch (err) {
+      console.error('Gagal reset kata sandi:', err);
+      setPesanGalatReset(err.message || 'Terjadi kesalahan saat memperbarui kata sandi operator.');
+    } finally {
+      setSedangReset(false);
+    }
+  };
+
+  // Buka Dialog Edit Operator
+  const bukaDialogEditOperator = (user) => {
+    setTargetUserEdit(user);
+    setNamaEdit(user.nama || '');
+    setEmailEdit(user.email || '');
+    setPeranEdit(user.peran || 'operator');
+    setStatusAktifEdit(user.aktif ?? true);
+    setPesanGalatEdit('');
+    setBukaModalEdit(true);
+  };
+
+  // Tangani Simpan Perubahan Edit Operator
+  const tanganiSimpanEdit = async (e) => {
+    e.preventDefault();
+    setPesanGalatEdit('');
+
+    if (!namaEdit.trim()) {
+      setPesanGalatEdit('Nama operator wajib diisi.');
+      return;
+    }
+
+    if (!emailEdit.trim() || !emailEdit.includes('@')) {
+      setPesanGalatEdit('Alamat email login tidak valid.');
+      return;
+    }
+
+    setSedangSimpanEdit(true);
+
+    try {
+      const { error } = await supabase.rpc('admin_edit_operator', {
+        p_user_id: targetUserEdit.id,
+        p_nama: namaEdit.trim(),
+        p_email: emailEdit.trim(),
+        p_peran: peranEdit,
+        p_aktif: statusAktifEdit,
+      });
+
+      if (error) {
+        if (error.message && (error.message.includes('function') || error.message.includes('admin_edit_operator'))) {
+          throw new Error('Fungsi database admin_edit_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/017_kelola_operator_admin.sql di Supabase SQL Editor.');
+        }
+        throw error;
+      }
+
+      await notifikasiSukses(
+        'Profil Operator Diperbarui',
+        `Data akun <strong>"${namaEdit}"</strong> berhasil disimpan.`
+      );
+
+      setBukaModalEdit(false);
+      setTargetUserEdit(null);
+      await muatPengguna();
+    } catch (err) {
+      console.error('Gagal memperbarui profil operator:', err);
+      setPesanGalatEdit(err.message || 'Terjadi kesalahan saat menyimpan perubahan operator.');
+    } finally {
+      setSedangSimpanEdit(false);
+    }
+  };
+
+  // Tangani Hapus Operator
+  const tanganiHapusOperator = async (user) => {
+    if (user.id === profilPenggunaSaatIni?.id) {
+      await notifikasiPeringatan('Aksi Ditolak', 'Anda tidak dapat menghapus akun yang sedang Anda gunakan.');
+      return;
+    }
+
+    const setuju = await konfirmasiAksi({
+      judul: 'Hapus Akun Operator?',
+      pesan: `Hapus permanen akun <strong>"${user.nama}"</strong> (${user.email || 'ID: ' + user.id})?<br/><br/><span class="text-xs text-red-600">Perhatian: Operator ini tidak akan bisa login lagi ke sistem. Data riwayat rapat yang pernah dibuat akan tetap aman dan dialihkan ke Administrator.</span>`,
+      teksKonfirmasi: 'Ya, Hapus Permanen',
+      teksBatal: 'Batal',
+      tombolBahaya: true,
+    });
+
+    if (!setuju) return;
+
+    try {
+      const { error } = await supabase.rpc('admin_hapus_operator', {
+        p_user_id: user.id,
+      });
+
+      if (error) {
+        if (error.message && (error.message.includes('function') || error.message.includes('admin_hapus_operator'))) {
+          throw new Error('Fungsi database admin_hapus_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/017_kelola_operator_admin.sql di Supabase SQL Editor.');
+        }
+        throw error;
+      }
+
+      await notifikasiSukses(
+        'Akun Operator Dihapus',
+        `Akun <strong>"${user.nama}"</strong> telah berhasil dihapus secara permanen dari sistem.`
+      );
+      await muatPengguna();
+    } catch (err) {
+      console.error('Gagal menghapus operator:', err);
+      await notifikasiGalat('Gagal Menghapus Akun', err.message || 'Terjadi kesalahan saat menghapus operator.');
     }
   };
 
@@ -312,28 +480,36 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
                     </td>
 
                     <td className="px-4 py-3 text-right">
-                      {!adalahDiriSendiri && (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => tanganiUbahPeran(user)}
-                            className="rounded-lg border border-garis bg-white px-2.5 py-1 text-[11px] font-bold text-pena hover:bg-pena/10 transition"
-                          >
-                            Ubah Peran ({user.peran === 'admin' ? 'Operator' : 'Admin'})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => tanganiUbahStatusAktif(user)}
-                            className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
-                              user.aktif
-                                ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                          >
-                            {user.aktif ? 'Nonaktifkan' : 'Aktifkan'}
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => bukaDialogEditOperator(user)}
+                          className="rounded-lg border border-garis bg-white px-2.5 py-1 text-[11px] font-bold text-tinta hover:bg-kertas transition flex items-center gap-1 shadow-sm"
+                          title="Edit profil dan data akun"
+                        >
+                          ✏️ Edit
+                        </button>
+                        {!adalahDiriSendiri && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => bukaDialogResetSandi(user)}
+                              className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 transition flex items-center gap-1 shadow-sm"
+                              title="Reset atau ubah kata sandi operator ini"
+                            >
+                              🔑 Sandi
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => tanganiHapusOperator(user)}
+                              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition flex items-center gap-1 shadow-sm"
+                              title="Hapus akun operator ini"
+                            >
+                              🗑️ Hapus
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -474,6 +650,200 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
               className="h-10 rounded-xl bg-daun px-5 text-xs font-bold text-white shadow hover:bg-daun-tua"
             >
               {sedangSimpan ? 'Menyimpan...' : 'Simpan Profil & Buat Akun'}
+            </Tombol>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Modal Reset Kata Sandi Operator */}
+      <Dialog
+        buka={bukaModalReset}
+        tutup={() => {
+          if (!sedangReset) {
+            setBukaModalReset(false);
+            setTargetUserReset(null);
+          }
+        }}
+        judul="Reset Kata Sandi Operator"
+      >
+        <form onSubmit={tanganiResetSandi} className="space-y-4">
+          <p className="text-xs text-tinta/70">
+            Atur kata sandi baru untuk akun operator{' '}
+            <strong className="text-tinta">{targetUserReset?.nama}</strong> ({targetUserReset?.email || 'ID: ' + targetUserReset?.id}).
+          </p>
+
+          <div>
+            <label className="block text-xs font-bold text-tinta">Kata Sandi Baru (Minimal 6 Karakter)</label>
+            <div className="relative mt-1">
+              <Masukan
+                type={tampilkanSandiReset ? 'text' : 'password'}
+                value={kataSandiReset}
+                onChange={(e) => setKataSandiReset(e.target.value)}
+                placeholder="Masukkan kata sandi baru..."
+                required
+                minLength={6}
+                className="pr-10 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setTampilkanSandiReset(!tampilkanSandiReset)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-tinta/50 hover:text-tinta"
+              >
+                {tampilkanSandiReset ? 'Sembunyikan' : 'Lihat'}
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-tinta/50">
+              Operator dapat langsung login menggunakan email dan kata sandi baru yang Anda tetapkan ini.
+            </p>
+          </div>
+
+          {pesanGalatReset && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              {pesanGalatReset}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 border-t border-garis pt-4">
+            <Tombol
+              type="button"
+              onClick={() => {
+                setBukaModalReset(false);
+                setTargetUserReset(null);
+              }}
+              disabled={sedangReset}
+              className="h-10 rounded-xl border border-garis px-4 text-xs font-semibold text-tinta hover:bg-kertas"
+            >
+              Batal
+            </Tombol>
+            <Tombol
+              type="submit"
+              disabled={sedangReset}
+              className="h-10 rounded-xl bg-daun px-5 text-xs font-bold text-white shadow hover:bg-daun-tua disabled:opacity-50"
+            >
+              {sedangReset ? 'Menyimpan...' : 'Simpan Kata Sandi Baru'}
+            </Tombol>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Modal Edit Profil Operator */}
+      <Dialog
+        buka={bukaModalEdit}
+        tutup={() => {
+          if (!sedangSimpanEdit) {
+            setBukaModalEdit(false);
+            setTargetUserEdit(null);
+          }
+        }}
+        judul={`Edit Profil ${targetUserEdit?.id === profilPenggunaSaatIni?.id ? 'Akun Anda' : 'Operator'}`}
+      >
+        <form onSubmit={tanganiSimpanEdit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-tinta">Nama Lengkap & Gelar</label>
+            <Masukan
+              type="text"
+              value={namaEdit}
+              onChange={(e) => setNamaEdit(e.target.value)}
+              placeholder="Contoh: I Kadek Ariasa, S.Kom."
+              required
+              className="mt-1 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-tinta">Alamat Email Login</label>
+            <Masukan
+              type="email"
+              value={emailEdit}
+              onChange={(e) => setEmailEdit(e.target.value)}
+              placeholder="operator.belega@gmail.com"
+              required
+              className="mt-1 text-sm"
+            />
+            <p className="mt-1 text-[11px] text-tinta/50">
+              Email ini digunakan untuk masuk (login) ke aplikasi SIABDES Belega.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-tinta">Peran Akun</label>
+            <select
+              value={peranEdit}
+              disabled={targetUserEdit?.id === profilPenggunaSaatIni?.id}
+              onChange={(e) => setPeranEdit(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-garis bg-white p-3 text-xs text-tinta focus:border-daun focus:ring-1 focus:ring-daun disabled:bg-kertas disabled:cursor-not-allowed"
+            >
+              <option value="operator">Operator Rapat (Akses Kiosk, Scanner & Absensi)</option>
+              <option value="admin">Administrator Desa (Akses Penuh Seluruh Sistem)</option>
+            </select>
+            {targetUserEdit?.id === profilPenggunaSaatIni?.id && (
+              <p className="mt-1 text-[10px] text-amber-800">
+                🔒 Peran akun Anda saat ini dikunci untuk keamanan sistem.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-tinta">Status Akun</label>
+            <div className="mt-1.5 flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs font-medium text-tinta cursor-pointer">
+                <input
+                  type="radio"
+                  name="status_edit"
+                  checked={statusAktifEdit === true}
+                  disabled={targetUserEdit?.id === profilPenggunaSaatIni?.id}
+                  onChange={() => setStatusAktifEdit(true)}
+                  className="accent-daun"
+                />
+                <span className="rounded bg-emerald-50 px-2 py-0.5 font-bold text-emerald-800 border border-emerald-200">
+                  Aktif
+                </span>
+              </label>
+              <label className="flex items-center gap-2 text-xs font-medium text-tinta cursor-pointer">
+                <input
+                  type="radio"
+                  name="status_edit"
+                  checked={statusAktifEdit === false}
+                  disabled={targetUserEdit?.id === profilPenggunaSaatIni?.id}
+                  onChange={() => setStatusAktifEdit(false)}
+                  className="accent-red-600"
+                />
+                <span className="rounded bg-red-50 px-2 py-0.5 font-bold text-red-800 border border-red-200">
+                  Nonaktif
+                </span>
+              </label>
+            </div>
+            {targetUserEdit?.id === profilPenggunaSaatIni?.id && (
+              <p className="mt-1 text-[10px] text-amber-800">
+                🔒 Anda tidak dapat menonaktifkan akun yang sedang aktif digunakan.
+              </p>
+            )}
+          </div>
+
+          {pesanGalatEdit && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              {pesanGalatEdit}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 border-t border-garis pt-4">
+            <Tombol
+              type="button"
+              onClick={() => {
+                setBukaModalEdit(false);
+                setTargetUserEdit(null);
+              }}
+              disabled={sedangSimpanEdit}
+              className="h-10 rounded-xl border border-garis px-4 text-xs font-semibold text-tinta hover:bg-kertas"
+            >
+              Batal
+            </Tombol>
+            <Tombol
+              type="submit"
+              disabled={sedangSimpanEdit}
+              className="h-10 rounded-xl bg-daun px-5 text-xs font-bold text-white shadow hover:bg-daun-tua disabled:opacity-50"
+            >
+              {sedangSimpanEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
             </Tombol>
           </div>
         </form>

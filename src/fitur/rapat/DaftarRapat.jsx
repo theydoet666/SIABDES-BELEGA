@@ -10,6 +10,7 @@ import { Pemuat } from '../../komponen/umum/Pemuat.jsx';
 import { Tombol } from '../../komponen/umum/Tombol.jsx';
 
 import { konfirmasiAksi, notifikasiGalat } from '../../lib/notifikasi.js';
+import { ModalUbahKataSandi } from '../auth/ModalUbahKataSandi.jsx';
 
 export default function DaftarRapat() {
   const [daftarRapat, setDaftarRapat] = useState([]);
@@ -17,6 +18,7 @@ export default function DaftarRapat() {
   const [filterStatus, setFilterStatus] = useState('semua');
   const [kueriCari, setKueriCari] = useState('');
   const [sedangDuplikasiId, setSedangDuplikasiId] = useState(null);
+  const [bukaModalSandi, setBukaModalSandi] = useState(false);
 
   // State untuk Paging (Penomoran Halaman)
   const [halamanAktif, setHalamanAktif] = useState(1);
@@ -131,6 +133,14 @@ export default function DaftarRapat() {
               <div className="text-sm font-semibold text-tinta">{profil?.nama || 'Operator'}</div>
               <div className="text-xs uppercase text-tinta/60">{profil?.peran || 'Operator'}</div>
             </div>
+            <button
+              type="button"
+              onClick={() => setBukaModalSandi(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-garis bg-white px-3 py-2 text-xs font-semibold text-tinta hover:bg-kertas transition shadow-xs"
+              title="Ganti kata sandi akun Anda"
+            >
+              🔑 Ubah Sandi
+            </button>
             <Tombol
               onClick={keluar}
               className="h-10 rounded-lg border border-garis px-3 text-xs font-semibold text-tinta hover:bg-kertas"
@@ -392,6 +402,13 @@ export default function DaftarRapat() {
             Kebijakan Privasi & PDP (UU 27/2022)
           </Link>
         </footer>
+
+        {/* Modal Ubah Kata Sandi */}
+        <ModalUbahKataSandi
+          buka={bukaModalSandi}
+          tutup={() => setBukaModalSandi(false)}
+          emailPengguna={pengguna?.email || profil?.email || ''}
+        />
       </main>
     </div>
   );
