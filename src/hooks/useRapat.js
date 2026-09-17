@@ -294,7 +294,7 @@ export function useRapat() {
             penyelenggara: rapatData.penyelenggara,
             catatan: rapatData.catatan,
             status: 'draft',
-            pin_kiosk: rapatData.pin_kiosk,
+            pin_kiosk: String(Math.floor(100000 + Math.random() * 900000)),
             retensi_hari: rapatData.retensi_hari || 90,
             dibuat_oleh: userId,
           },

@@ -1,0 +1,23 @@
+name: Pembersihan Otomatis Retensi Foto
+
+on:
+  schedule:
+    # Berjalan setiap hari pada pukul 19:00 UTC (03:00 WITA)
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+jobs:
+  bersihkan-retensi:
+    name: Eksekusi Pembersihan Retensi Foto
+    runs-on: ubuntu-latest
+    steps:
+      - name: Panggil Edge Function Bersihkan Retensi
+        if: env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_ROLE_KEY != ''
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Menjalankan pembersihan retensi foto kedaluwarsa ke Supabase..."
+          curl -s -X POST "${SUPABASE_URL}/functions/v1/bersihkan-retensi" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json"

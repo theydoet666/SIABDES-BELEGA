@@ -192,171 +192,50 @@ export async function kirimCheckin(payload) {
     }
   }
 
-  // 4. Prioritas 1: Eksekusi RPC `proses_checkin`
-  let rpcSelesai = false;
-  try {
-    const { data: hasilRpc, error: errRpc } = await supabase.rpc('proses_checkin', {
-      p_idempotency_key: idempotency_key,
-      p_kode_rapat: kode_rapat.toUpperCase(),
-      p_undangan_id: targetUndanganId,
-      p_nama_baru: undangan_baru?.nama || null,
-      p_jabatan_baru: undangan_baru?.jabatan || null,
-      p_instansi_baru: undangan_baru?.instansi || null,
-      p_hp_baru: undangan_baru?.hp || null,
-      p_ttd_path: ttdPath,
-      p_foto_path: fotoPath,
-      p_jalur: jalur,
-      p_perangkat_id: perangkat_id,
-      p_waktu_perangkat: waktu_perangkat,
-    });
+  // 4. Eksekusi Tunggal & Aman: RPC `proses_checkin` (SECURITY DEFINER & Rate-Limited)
+  const { data: hasilRpc, error: errRpc } = await supabase.rpc('proses_checkin', {
+    p_idempotency_key: idempotency_key,
+    p_kode_rapat: kode_rapat.toUpperCase(),
+    p_undangan_id: targetUndanganId,
+    p_nama_baru: undangan_baru?.nama || null,
+    p_jabatan_baru: undangan_baru?.jabatan || null,
+    p_instansi_baru: undangan_baru?.instansi || null,
+    p_hp_baru: undangan_baru?.hp || null,
+    p_ttd_path: ttdPath,
+    p_foto_path: fotoPath,
+    p_jalur: jalur,
+    p_perangkat_id: perangkat_id,
+    p_waktu_perangkat: waktu_perangkat,
+  });
 
-    if (!errRpc && hasilRpc) {
-      rpcSelesai = true;
-      if (hasilRpc.status === 201 || hasilRpc.status === 200) {
-        return {
-          berhasil: true,
-          status: hasilRpc.status,
-          sudahPernah: hasilRpc.status === 200,
-          pesan: hasilRpc.pesan || 'Kehadiran berhasil dicatat.',
-          data: hasilRpc,
-        };
-      } else if (hasilRpc.error) {
-        if (hasilRpc.status === 409 || hasilRpc.error.includes('sudah tercatat')) {
-          return {
-            berhasil: true,
-            status: 200,
-            sudahPernah: true,
-            pesan: 'Kehadiran sudah tercatat sebelumnya.',
-            data: hasilRpc,
-          };
-        }
-        const err = new Error(hasilRpc.error);
-        err.status = hasilRpc.status || 400;
-        throw err;
-      }
-    }
-
-    // Jika error spesifik dari RPC (bukan function missing)
-    if (errRpc) {
-      const msg = errRpc.message || '';
-      const code = errRpc.code || '';
-      const isMissing = code === 'PGRST202' || msg.includes('does not exist') || msg.includes('schema cache');
-      if (!isMissing) {
-        console.warn('RPC mengembalikan galat:', errRpc);
-        const err = new Error(msg || 'Kendala saat memproses kehadiran.');
-        err.status = 400;
-        throw err;
-      }
-    }
-  } catch (rpcErr) {
-    if (rpcErr.status && rpcErr.status >= 400 && rpcErr.status < 500) {
-      throw rpcErr;
-    }
-    console.warn('RPC proses_checkin belum terpasang di database, mencoba jalur fallback tabel:', rpcErr);
-  }
-
-  if (rpcSelesai) return;
-
-  // 5. Prioritas 2 (Fallback Tabel Langsung):
-  // Cek Idempotency Key
-  const { data: kehadiranLama } = await supabase
-    .from('kehadiran')
-    .select('id, dibuat_pada')
-    .eq('id', idempotency_key)
-    .maybeSingle();
-
-  if (kehadiranLama) {
-    return {
-      berhasil: true,
-      status: 200,
-      sudahPernah: true,
-      pesan: 'Kehadiran sudah tercatat sebelumnya.',
-      data: { id: kehadiranLama.id },
-    };
-  }
-
-  // Jika undangan baru belum ada ID di tabel
-  if (!targetUndanganId) {
-    if (!undangan_baru?.nama?.trim()) {
-      const err = new Error('Nama peserta wajib diisi.');
-      err.status = 400;
-      throw err;
-    }
-
-    const { data: undBaru, error: errInsertUnd } = await supabase
-      .from('undangan')
-      .insert([
-        {
-          rapat_id: rapat.id,
-          nama: undangan_baru.nama.trim(),
-          jabatan: undangan_baru.jabatan?.trim() || '',
-          instansi: undangan_baru.instansi?.trim() || '',
-          hp: undangan_baru.hp?.trim() || '',
-          sumber: 'tambahan',
-        },
-      ])
-      .select('id')
-      .single();
-
-    if (errInsertUnd || !undBaru) {
-      console.error('Galat simpan undangan tambahan:', errInsertUnd);
-      const err = new Error('Gagal mencatat peserta tambahan.');
-      err.status = 500;
-      throw err;
-    }
-
-    targetUndanganId = undBaru.id;
-  }
-
-  // Cek apakah undangan ini sudah punya kehadiran aktif di server
-  const { data: sudahHadir } = await supabase
-    .from('kehadiran')
-    .select('id, dibuat_pada')
-    .eq('undangan_id', targetUndanganId)
-    .eq('dibatalkan', false)
-    .maybeSingle();
-
-  if (sudahHadir) {
-    return {
-      berhasil: true,
-      status: 200,
-      sudahPernah: true,
-      pesan: 'Kehadiran sudah tercatat sebelumnya.',
-      data: { id: sudahHadir.id },
-    };
-  }
-
-  // Masukkan baris kehadiran
-  const { data: barisHadir, error: errInsertHadir } = await supabase
-    .from('kehadiran')
-    .insert([
-      {
-        id: idempotency_key,
-        rapat_id: rapat.id,
-        undangan_id: targetUndanganId,
-        ttd_path: ttdPath,
-        foto_path: fotoPath,
-        jalur: jalur || 'kiosk',
-        perangkat_id: perangkat_id || '',
-        waktu_perangkat: waktu_perangkat,
-        dibatalkan: false,
-      },
-    ])
-    .select('id, dibuat_pada')
-    .single();
-
-  if (errInsertHadir || !barisHadir) {
-    console.error('Galat insert kehadiran:', errInsertHadir);
-    const err = new Error(errInsertHadir?.message || 'Gagal mencatat kehadiran ke server.');
+  if (errRpc) {
+    console.error('Kendala saat mengeksekusi RPC proses_checkin:', errRpc);
+    const err = new Error(errRpc.message || 'Gagal memproses absensi ke server.');
     err.status = 500;
+    throw err;
+  }
+
+  if (hasilRpc?.error) {
+    if (hasilRpc.status === 409 || hasilRpc.error.includes('sudah tercatat')) {
+      return {
+        berhasil: true,
+        status: 200,
+        sudahPernah: true,
+        pesan: 'Kehadiran sudah tercatat sebelumnya.',
+        data: hasilRpc,
+      };
+    }
+    const err = new Error(hasilRpc.error);
+    err.status = hasilRpc.status || 400;
     throw err;
   }
 
   return {
     berhasil: true,
-    status: 201,
-    pesan: 'Kehadiran berhasil dicatat.',
-    data: barisHadir,
+    status: hasilRpc?.status || 201,
+    sudahPernah: hasilRpc?.status === 200,
+    pesan: hasilRpc?.pesan || 'Kehadiran berhasil dicatat.',
+    data: hasilRpc,
   };
 }
 
