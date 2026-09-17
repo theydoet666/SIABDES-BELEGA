@@ -38,7 +38,7 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
         tempat: rapat.tempat || '',
         penyelenggara: rapat.penyelenggara || pengaturan?.nama_desa || 'Pemerintah Desa Belega',
         catatan: rapat.catatan || '',
-        pin_kiosk: rapat.pin_kiosk || '123456',
+        pin_kiosk: '',
         retensi_hari: rapat.retensi_hari || 90,
         penandatangan_jabatan: rapat.penandatangan_jabatan || `Perbekel ${namaDesa}`,
         penandatangan_nama: rapat.penandatangan_nama || 'I WAYAN SUDARSANA, S.Sos.',
@@ -87,9 +87,17 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
       return;
     }
 
+    const dataSimpan = { ...form };
+    if (!dataSimpan.pin_kiosk || !dataSimpan.pin_kiosk.trim()) {
+      delete dataSimpan.pin_kiosk;
+    } else if (!/^\d{6}$/.test(dataSimpan.pin_kiosk.trim())) {
+      setPesanGalat('PIN Kiosk baru harus berupa 6 digit angka.');
+      return;
+    }
+
     try {
       setSedangSimpan(true);
-      await onSimpan(form);
+      await onSimpan(dataSimpan);
       tutup();
     } catch (err) {
       setPesanGalat(err.message || 'Gagal memperbarui rapat.');
@@ -295,10 +303,11 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
         {/* Bagian 3: Kiosk & Retensi */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Masukan
-            label="PIN Kiosk (6 Angka)"
+            label="PIN Kiosk Baru (6 Angka)"
             id="edit-pin-kiosk"
             type="password"
             maxLength={6}
+            placeholder="Kosongkan jika tidak diubah"
             value={form.pin_kiosk}
             onChange={(e) => tanganiUbah('pin_kiosk', e.target.value)}
             className="h-10 text-sm"

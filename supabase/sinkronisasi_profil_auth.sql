@@ -21,7 +21,7 @@ on conflict (id) do update set
   peran = 'operator',
   aktif = true;
 
--- 3. Trigger otomatis agar setiap pengguna baru langsung memiliki profil aktif
+-- 3. Trigger otomatis agar setiap pengguna baru terdaftar sebagai operator (non-aktif sampai diaktivasi admin)
 create or replace function public.tangani_pengguna_baru()
 returns trigger as $$
 begin
@@ -29,14 +29,13 @@ begin
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'nama', split_part(new.email, '@', 1)),
-    case when new.email like 'admin%' then 'admin'::peran_pengguna else 'operator'::peran_pengguna end,
-    true
+    'operator'::peran_pengguna,
+    false
   )
-  on conflict (id) do update set
-    aktif = true;
+  on conflict (id) do nothing;
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created

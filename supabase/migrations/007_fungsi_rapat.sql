@@ -55,7 +55,7 @@ create trigger trg_rapat_kode
 -- RPC untuk menduplikasi rapat beserta seluruh undangannya (RP-04)
 create or replace function duplikasi_rapat(p_rapat_id uuid)
 returns uuid
-language plpgsql security definer as $$
+language plpgsql security definer set search_path = public as $$
 declare
   v_rapat_lama rapat%rowtype;
   v_rapat_baru_id uuid;

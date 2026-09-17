@@ -15,7 +15,7 @@ create index if not exists idx_rate_limit_jendela on rate_limit_rpc (jendela_wak
 -- 2. Fungsi Pembantu Rate Limit (30 panggilan per menit per IP)
 create or replace function periksa_rate_limit_ip(p_prefix text, p_maks int default 30)
 returns boolean
-language plpgsql security definer as $$
+language plpgsql security definer set search_path = public as $$
 declare
   v_ip text;
   v_kunci text;
@@ -108,7 +108,7 @@ returns table (
   rapat_dibersihkan int,
   foto_dikosongkan int
 )
-language plpgsql security definer as $$
+language plpgsql security definer set search_path = public as $$
 declare
   v_rapat_count int := 0;
   v_foto_count int := 0;

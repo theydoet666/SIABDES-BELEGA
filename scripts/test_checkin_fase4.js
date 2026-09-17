@@ -32,7 +32,7 @@ const anonKey = env.VITE_SUPABASE_ANON_KEY;
 
 const anonClient = createClient(supabaseUrl, anonKey);
 
-// Logika pemrosesan check-in Edge Function (PRD Bagian 11)
+// Logika pemrosesan check-in memanggil RPC proses_checkin produksi secara langsung (PRD Bagian 11 & Temuan #11)
 async function prosesCheckin(body, client) {
   const {
     idempotency_key,
@@ -46,7 +46,7 @@ async function prosesCheckin(body, client) {
     waktu_perangkat = new Date().toISOString(),
   } = body;
 
-  // 1. Validasi bentuk payload (PRD 11 Langkah 1)
+  // 1. Validasi bentuk payload di client
   if (!idempotency_key || !kode_rapat || !ttd_base64) {
     return { status: 400, error: 'Parameter wajib belum lengkap.' };
   }
@@ -54,87 +54,7 @@ async function prosesCheckin(body, client) {
     return { status: 400, error: 'Harus menyertakan undangan_id atau data undangan_baru.' };
   }
 
-  // 2. Validasi status rapat (PRD 11 Langkah 2)
-  const resRapat = await client
-    .from('rapat')
-    .select('id, kode, judul, status')
-    .eq('kode', kode_rapat.toUpperCase())
-    .maybeSingle();
-
-  const rapat = resRapat?.data;
-  if (!rapat) {
-    return { status: 404, error: 'Kode rapat tidak ditemukan.' };
-  }
-  if (rapat.status !== 'dibuka') {
-    return { status: 409, error: 'Registrasi rapat belum dibuka atau sudah ditutup.' };
-  }
-
-  // 3. Pengecekan Idempotency Key (PRD 11 Langkah 3)
-  const resKehadiranLama = await client
-    .from('kehadiran')
-    .select('id, dibuat_pada')
-    .eq('id', idempotency_key)
-    .maybeSingle();
-
-  if (resKehadiranLama?.data) {
-    return {
-      status: 200,
-      pesan: 'Sudah pernah tercatat (idempoten)',
-      idempotency_key,
-    };
-  }
-
-  // 4. Undangan Baru vs Eksisting (PRD 11 Langkah 4)
-  let finalUndanganId = undangan_id;
-  let infoUndangan = { nama: '', jabatan: '', instansi: '', sumber: 'import' };
-
-  if (!finalUndanganId) {
-    const resUndanganBaru = await client
-      .from('undangan')
-      .insert([
-        {
-          rapat_id: rapat.id,
-          nama: undangan_baru.nama.trim(),
-          jabatan: undangan_baru.jabatan?.trim() || '',
-          instansi: undangan_baru.instansi?.trim() || '',
-          hp: undangan_baru.hp?.trim() || '',
-          sumber: 'tambahan',
-        },
-      ])
-      .select('id, nama, jabatan, instansi, sumber')
-      .single();
-
-    if (resUndanganBaru?.error || !resUndanganBaru?.data) {
-      return { status: 500, error: 'Gagal mencatat undangan tambahan.' };
-    }
-    finalUndanganId = resUndanganBaru.data.id;
-    infoUndangan = resUndanganBaru.data;
-  } else {
-    const resUndAda = await client
-      .from('undangan')
-      .select('id, nama, jabatan, instansi, sumber')
-      .eq('id', finalUndanganId)
-      .single();
-
-    if (!resUndAda?.data) {
-      return { status: 404, error: 'ID Undangan tidak ditemukan.' };
-    }
-    infoUndangan = resUndAda.data;
-  }
-
-  // 5. Tolak 409 jika sudah punya kehadiran aktif (PRD 11 Langkah 5)
-  const resCekSudahHadir = await client
-    .from('kehadiran')
-    .select('id')
-    .eq('undangan_id', finalUndanganId)
-    .eq('dibatalkan', false)
-    .maybeSingle();
-
-  if (resCekSudahHadir?.data) {
-    return { status: 409, error: 'Peserta ini sudah tercatat hadir pada rapat ini.' };
-  }
-
-  // 6. Validasi Ukuran Gambar: TTD <= 100 KB, Foto <= 200 KB (PRD 11 Langkah 6)
+  // 2. Validasi batas ukuran gambar
   const ttdLength = Buffer.byteLength(ttd_base64, 'utf8');
   if (ttdLength > 100 * 1024) {
     return { status: 413, error: 'Ukuran tanda tangan melebihi batas 100 KB.' };
@@ -146,36 +66,34 @@ async function prosesCheckin(body, client) {
     }
   }
 
-  // 7 & 8. Simpan ke database kehadiran (PRD 11 Langkah 7 & 8)
-  const ttdPath = `${rapat.id}/${finalUndanganId}/ttd.png`;
-  const resHadirBaru = await client
-    .from('kehadiran')
-    .insert([
-      {
-        id: idempotency_key,
-        rapat_id: rapat.id,
-        undangan_id: finalUndanganId,
-        ttd_path: ttdPath,
-        foto_path: foto_base64 ? `${rapat.id}/${finalUndanganId}/foto.jpg` : null,
-        jalur,
-        perangkat_id,
-        waktu_perangkat,
-        dibatalkan: false,
-      },
-    ])
-    .select('id, dibuat_pada')
-    .single();
+  // 3. Panggil RPC `proses_checkin` di PostgreSQL
+  const { data, error } = await client.rpc('proses_checkin', {
+    p_idempotency_key: idempotency_key,
+    p_kode_rapat: kode_rapat,
+    p_undangan_id: undangan_id || null,
+    p_nama_baru: undangan_baru?.nama?.trim() || null,
+    p_jabatan_baru: undangan_baru?.jabatan?.trim() || null,
+    p_instansi_baru: undangan_baru?.instansi?.trim() || null,
+    p_hp_baru: undangan_baru?.hp?.trim() || null,
+    p_ttd_path: `${kode_rapat}/ttd.png`,
+    p_foto_path: foto_base64 ? `${kode_rapat}/foto.jpg` : null,
+    p_jalur: jalur,
+    p_perangkat_id: perangkat_id,
+    p_waktu_perangkat: waktu_perangkat,
+  });
 
-  if (resHadirBaru?.error || !resHadirBaru?.data) {
-    return { status: 500, error: 'Gagal menyimpan kehadiran.' };
+  if (error) {
+    return { status: 500, error: error.message };
+  }
+
+  if (data?.error) {
+    return { status: data.status || 400, error: data.error };
   }
 
   return {
     status: 201,
-    nomor_urut: 1,
-    nama: infoUndangan.nama,
-    sumber: infoUndangan.sumber,
-    id: resHadirBaru.data.id,
+    sukses: true,
+    data,
   };
 }
 

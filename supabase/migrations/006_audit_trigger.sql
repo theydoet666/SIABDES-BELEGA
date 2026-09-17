@@ -6,7 +6,7 @@
 -- Fungsi trigger audit perubahan kehadiran
 create or replace function fn_audit_kehadiran()
 returns trigger
-language plpgsql security definer as $$
+language plpgsql security definer set search_path = public as $$
 begin
   insert into audit_log (aktor, aksi, tabel, baris_id, rincian)
   values (
@@ -34,7 +34,7 @@ create trigger trg_audit_kehadiran
 -- Fungsi trigger audit penghapusan undangan
 create or replace function fn_audit_undangan()
 returns trigger
-language plpgsql security definer as $$
+language plpgsql security definer set search_path = public as $$
 begin
   insert into audit_log (aktor, aksi, tabel, baris_id, rincian)
   values (

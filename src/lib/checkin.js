@@ -114,6 +114,13 @@ export async function kirimCheckin(payload) {
   try {
     const blobTtd = base64KeBlob(ttd_base64);
     if (blobTtd) {
+      // Validasi Ukuran TTD: Maksimal 100 KB (PRD 11 & Temuan #4)
+      if (blobTtd.size > 100 * 1024) {
+        const err = new Error('Ukuran berkas tanda tangan melebihi batas maksimal 100 KB.');
+        err.status = 413;
+        throw err;
+      }
+
       // Prioritas 1: Upload langsung (upsert: false) agar aman dari restriksi RLS SELECT/UPDATE pada akun anonim
       let { error: errUploadTtd } = await supabase.storage
         .from('bukti')
@@ -139,6 +146,7 @@ export async function kirimCheckin(payload) {
       }
     }
   } catch (storageErr) {
+    if (storageErr.status === 413) throw storageErr;
     console.error('Kendala saat memproses upload storage TTD:', storageErr);
   }
 
@@ -147,6 +155,13 @@ export async function kirimCheckin(payload) {
       fotoPath = `${rapat.id}/${idPrefix}/foto.jpg`;
       const blobFoto = base64KeBlob(foto_base64);
       if (blobFoto) {
+        // Validasi Ukuran Foto: Maksimal 200 KB (PRD 11 & Temuan #4)
+        if (blobFoto.size > 200 * 1024) {
+          const err = new Error('Ukuran berkas foto wajah melebihi batas maksimal 200 KB.');
+          err.status = 413;
+          throw err;
+        }
+
         let { error: errUploadFoto } = await supabase.storage
           .from('bukti')
           .upload(fotoPath, blobFoto, { contentType: 'image/jpeg', upsert: false });
@@ -171,6 +186,7 @@ export async function kirimCheckin(payload) {
         }
       }
     } catch (storageErr) {
+      if (storageErr.status === 413) throw storageErr;
       console.error('Kendala saat memproses upload storage foto:', storageErr);
       fotoPath = null;
     }

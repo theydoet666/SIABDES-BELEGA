@@ -40,7 +40,6 @@ export async function simpanCacheRapatLokal(rapat, daftarUndangan) {
       tempat: rapat.tempat,
       penyelenggara: rapat.penyelenggara,
       status: rapat.status,
-      pin_kiosk: rapat.pin_kiosk,
     });
 
     // 2. Simpan daftar undangan ke cache lokal

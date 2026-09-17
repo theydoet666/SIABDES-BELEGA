@@ -303,17 +303,53 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
     }
   };
 
-  // Verifikasi PIN untuk keluar dari Kiosk (AU-05)
-  const tanganiKeluarKiosk = (e) => {
+  const [sedangVerifikasiPin, setSedangVerifikasiPin] = useState(false);
+
+  // Verifikasi PIN untuk keluar dari Kiosk melalui Server RPC (AU-05 & Audit Keamanan)
+  const tanganiKeluarKiosk = async (e) => {
     e.preventDefault();
     setGalatPin('');
 
-    const pinBenar = rapatAktif?.pin_kiosk || '123456';
-    if (inputPin === pinBenar) {
-      setBukaModalPin(false);
-      navigate(`/rapat/${rapatAktif?.id || ''}`);
-    } else {
-      setGalatPin('PIN Kiosk salah. Silakan periksa kembali.');
+    if (!inputPin || inputPin.trim().length !== 6) {
+      setGalatPin('Silakan masukkan 6 angka PIN Kiosk dengan benar.');
+      return;
+    }
+
+    if (!rapatAktif?.id) {
+      setGalatPin('Data rapat belum siap. Harap tunggu sebentar.');
+      return;
+    }
+
+    setSedangVerifikasiPin(true);
+    try {
+      if (!online) {
+        setGalatPin('Perangkat sedang luring (offline). Sambungkan ke internet untuk verifikasi PIN keluar kiosk.');
+        return;
+      }
+
+      const { data: pinValid, error } = await supabase.rpc('verifikasi_pin_kiosk', {
+        p_rapat_id: rapatAktif.id,
+        p_pin: inputPin.trim(),
+      });
+
+      if (error) {
+        console.error('Kendala saat verifikasi PIN Kiosk:', error);
+        setGalatPin('Gagal memverifikasi PIN. Periksa kembali sambungan jaringan Anda.');
+        return;
+      }
+
+      if (pinValid) {
+        setBukaModalPin(false);
+        setInputPin('');
+        navigate(`/rapat/${rapatAktif.id}`);
+      } else {
+        setGalatPin('PIN Kiosk salah. Silakan periksa kembali.');
+      }
+    } catch (err) {
+      console.error('Galat verifikasi PIN Kiosk:', err);
+      setGalatPin('Terjadi kesalahan saat memverifikasi PIN.');
+    } finally {
+      setSedangVerifikasiPin(false);
     }
   };
 
@@ -600,9 +636,10 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
             </Tombol>
             <Tombol
               type="submit"
-              className="h-10 rounded-lg bg-daun px-5 text-xs font-bold text-kertas shadow hover:bg-daun-tua"
+              disabled={sedangVerifikasiPin}
+              className="h-10 rounded-lg bg-daun px-5 text-xs font-bold text-kertas shadow hover:bg-daun-tua disabled:opacity-50"
             >
-              Buka Kunci
+              {sedangVerifikasiPin ? 'Memeriksa...' : 'Buka Kunci'}
             </Tombol>
           </div>
         </form>

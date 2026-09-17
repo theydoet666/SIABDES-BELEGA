@@ -25,7 +25,7 @@ export default function FormRapat() {
     tempat: `Wantilan Kantor Desa ${namaDesa}`,
     penyelenggara: pengaturan?.nama_desa || 'Pemerintah Desa Belega',
     catatan: '',
-    pin_kiosk: '123456',
+    pin_kiosk: String(Math.floor(100000 + Math.random() * 900000)),
     retensi_hari: 90,
     penandatangan_jabatan: `Perbekel ${namaDesa}`,
     penandatangan_nama: 'I WAYAN SUDARSANA, S.Sos.',
@@ -70,6 +70,10 @@ export default function FormRapat() {
     }
     if (!form.penandatangan_jabatan?.trim()) {
       setPesanGalat('Jabatan penandatangan laporan daftar hadir wajib diisi.');
+      return;
+    }
+    if (!form.pin_kiosk || !/^\d{6}$/.test(form.pin_kiosk.trim())) {
+      setPesanGalat('PIN Kiosk wajib berupa 6 digit angka.');
       return;
     }
 

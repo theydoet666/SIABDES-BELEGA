@@ -133,10 +133,12 @@ Aplikasi sudah dilengkapi dengan berkas `netlify.toml`:
 
 ---
 
-## 👥 Akun Akses Default Sistem
+## 👥 Pengelolaan Akun Pengguna & Keamanan
 
-- **Administrator Desa**: `admin@belega.id` / `admin123`
-- **Operator Rapat**: `operator@belega.id` / `belega123`
+Sistem menerapkan prinsip *Least Privilege* dan proteksi ketat data pribadi (UU PDP):
+- **Akun Administrator Pertama**: Dibuat langsung melalui dasbor Supabase Auth (**Authentication > Users > Add user**). Setelah akun terbuat, daftarkan profilnya dengan peran `admin` pada tabel `profil`.
+- **Operator Rapat**: Didaftarkan atau diaktivasi secara eksplisit oleh Administrator Desa melalui menu **Kelola Operator**. Pendaftaran mandiri publik tidak diizinkan memiliki hak akses sebelum diverifikasi.
+- **Peringatan Keamanan**: Jangan pernah menyimpan email atau kata sandi akun produksi di dalam kode sumber repositori publik.
 
 ---
 

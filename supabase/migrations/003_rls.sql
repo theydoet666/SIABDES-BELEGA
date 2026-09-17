@@ -11,7 +11,7 @@ alter table audit_log enable row level security;
 
 -- Fungsi pembantu hak akses
 create or replace function adalah_admin() returns boolean
-language sql stable security definer as $$
+language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from profil
     where id = auth.uid() and peran = 'admin' and aktif
@@ -19,7 +19,7 @@ language sql stable security definer as $$
 $$;
 
 create or replace function pengguna_aktif() returns boolean
-language sql stable security definer as $$
+language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from profil
     where id = auth.uid() and aktif

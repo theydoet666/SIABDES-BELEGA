@@ -74,8 +74,20 @@ export function PenyediaAuth({ children }) {
     };
   }, []);
 
+  const [percobaanGagal, setPercobaanGagal] = useState(0);
+  const [terkunciSampai, setTerkunciSampai] = useState(0);
+
   const masuk = async (email, kataSandi) => {
     setGalat(null);
+
+    const sekarang = Date.now();
+    if (terkunciSampai > sekarang) {
+      const sisaDetik = Math.ceil((terkunciSampai - sekarang) / 1000);
+      const pesan = `Terlalu banyak percobaan login yang gagal. Silakan tunggu ${sisaDetik} detik lagi.`;
+      setGalat(pesan);
+      throw new Error(pesan);
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -83,11 +95,25 @@ export function PenyediaAuth({ children }) {
       });
 
       if (error) {
+        const jumlahGagalBaru = percobaanGagal + 1;
+        setPercobaanGagal(jumlahGagalBaru);
+
+        if (jumlahGagalBaru >= 5) {
+          const kunciHingga = Date.now() + 60 * 1000;
+          setTerkunciSampai(kunciHingga);
+          setPercobaanGagal(0);
+          throw new Error('Terlalu banyak percobaan login salah. Akun dijeda selama 60 detik untuk keamanan.');
+        }
+
         if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Email atau kata sandi tidak cocok. Periksa kembali penulisan Anda.');
+          throw new Error(`Email atau kata sandi tidak cocok. Sisa percobaan aman: ${5 - jumlahGagalBaru}.`);
         }
         throw new Error('Gagal masuk ke sistem. Periksa kembali sambungan internet Anda.');
       }
+
+      // Login berhasil, reset penghitung kegagalan
+      setPercobaanGagal(0);
+      setTerkunciSampai(0);
 
       if (data.user) {
         const profilUser = await ambilProfil(data.user.id);

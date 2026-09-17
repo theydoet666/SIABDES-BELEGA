@@ -52,22 +52,37 @@ export async function eksporDaftarHadirExcel(rapat, daftarPeserta = []) {
     tambahan: 'Tambahan di Tempat (*)',
   };
 
-  // 2. Masukkan Baris Peserta
+/**
+ * Mencegah serangan Formula Injection pada spreadsheet (Temuan #9)
+ * Teks yang diawali karakter formula (=, +, -, @) diberi prefiks tanda petik tunggal (')
+ */
+function sanitasiFormula(val) {
+  if (val === null || val === undefined) return '-';
+  const teks = String(val).trim();
+  if (!teks) return '-';
+  if (/^[=+\-@\t\r]/.test(teks)) {
+    return `'${teks}`;
+  }
+  return teks;
+}
+
+  // 2. Masukkan Baris Peserta (dengan sanitasi formula injection)
   daftarPeserta.forEach((peserta, idx) => {
     const k = peserta.kehadiran;
+    const namaTampil = peserta.nama ? sanitasiFormula(peserta.nama) + (peserta.sumber === 'tambahan' ? ' (*)' : '') : '-';
 
     barisData.push([
       idx + 1,
-      peserta.nama + (peserta.sumber === 'tambahan' ? ' (*)' : ''),
-      peserta.jabatan || '-',
-      peserta.instansi || '-',
-      peserta.hp || '-',
+      namaTampil,
+      sanitasiFormula(peserta.jabatan),
+      sanitasiFormula(peserta.instansi),
+      sanitasiFormula(peserta.hp),
       labelSumber[peserta.sumber] || peserta.sumber,
       peserta.sudahHadir ? 'Hadir' : 'Belum Hadir',
       k?.waktuCheckin ? formatWaktuSingkat(k.waktuCheckin) : '-',
       k?.jalur ? (labelJalur[k.jalur] || k.jalur) : '-',
       k?.fotoPath ? 'Ada' : (peserta.sudahHadir ? 'Tidak Ada' : '-'),
-      k?.diwakiliOleh ? `Diwakili oleh: ${k.diwakiliOleh}` : '-',
+      k?.diwakiliOleh ? `Diwakili oleh: ${sanitasiFormula(k.diwakiliOleh)}` : '-',
     ]);
   });
 
