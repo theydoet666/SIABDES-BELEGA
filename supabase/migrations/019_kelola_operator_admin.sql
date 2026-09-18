@@ -1,5 +1,5 @@
 -- ============================================================
--- 017_kelola_operator_admin.sql
+-- 019_kelola_operator_admin.sql
 -- SIABDES Belega: RPC Administrator Mengubah & Menghapus Operator
 -- ============================================================
 

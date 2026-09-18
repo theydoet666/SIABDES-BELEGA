@@ -1,5 +1,5 @@
 -- ============================================================
--- 016_ganti_password.sql
+-- 018_ganti_password.sql
 -- SIABDES Belega: RPC Administrator Mengubah Kata Sandi Operator
 -- ============================================================
 

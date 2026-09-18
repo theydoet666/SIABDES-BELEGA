@@ -1,6 +1,6 @@
 -- ==============================================================================
--- 015_perbaikan_rpc_checkin_dan_storage.sql
--- SIABDES Belega: Perbaikan Lengkap RPC Check-in, Rate Limiting & Storage Bukti
+-- 017_perbaikan_rpc_checkin.sql
+-- SIABDES Belega: Perbaikan Lengkap RPC Check-in & Rate Limiting Server-Side
 -- ==============================================================================
 
 -- 1. Tabel Rate Limit untuk RPC Publik (PRD 10.4 & 14)
@@ -68,7 +68,7 @@ $$;
 revoke all on function public.periksa_rate_limit_ip(text, int) from public;
 grant execute on function public.periksa_rate_limit_ip(text, int) to anon, authenticated;
 
--- 3. Fungsi Utama RPC proses_checkin (Aman, Idempoten, dan Tangguh)
+-- 3. Fungsi Utama RPC proses_checkin (Aman, Idempoten, Fail-Closed Rate Limiting)
 create or replace function public.proses_checkin(
   p_idempotency_key uuid,
   p_kode_rapat      text,
@@ -96,18 +96,13 @@ declare
   v_dibuat_pada timestamptz;
   v_urutan int;
 begin
-  -- Proteksi Rate Limit IP (Maks 15 panggilan per menit) dengan fallback aman
-  begin
-    if not public.periksa_rate_limit_ip('proses_checkin'::text, 15::int) then
-      return jsonb_build_object(
-        'error', 'Terlalu banyak permintaan check-in dari perangkat ini. Harap tunggu 1 menit.',
-        'status', 429
-      );
-    end if;
-  exception when others then
-    -- Lewati jika ada kendala setting IP/headers
-    null;
-  end;
+  -- Proteksi Rate Limit IP (Maks 15 panggilan per menit) - Fail Closed
+  if not public.periksa_rate_limit_ip('proses_checkin'::text, 15::int) then
+    return jsonb_build_object(
+      'error', 'Terlalu banyak permintaan check-in dari perangkat ini. Harap tunggu 1 menit.',
+      'status', 429
+    );
+  end if;
 
   -- 1. Validasi Rapat berdasarkan Kode Rapat 4 Karakter
   select id, status into v_rapat_id, v_rapat_status
@@ -226,7 +221,7 @@ $$;
 revoke all on function public.proses_checkin from public;
 grant execute on function public.proses_checkin to anon, authenticated;
 
--- 4. Konfigurasi Bucket Storage 'bukti' & Kebijakan RLS Penyimpanan
+-- 4. Konfigurasi Batas Ukuran Berkas Bucket Storage 'bukti'
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'bukti',
@@ -240,18 +235,7 @@ on conflict (id) do update set
   file_size_limit = 524288,
   allowed_mime_types = array['image/png', 'image/jpeg', 'image/jpg'];
 
--- Pastikan RLS Storage Objek Aktif & Diizinkan untuk Check-in
+-- 5. Pastikan Kebijakan Longgar Terhapus (Kebijakan Ketat 013 Tetap Berlaku)
 drop policy if exists "Izinkan Unggah Bukti Kehadiran" on storage.objects;
-create policy "Izinkan Unggah Bukti Kehadiran"
-  on storage.objects for insert
-  with check (bucket_id = 'bukti');
-
 drop policy if exists "Izinkan Perbarui Bukti Kehadiran" on storage.objects;
-create policy "Izinkan Perbarui Bukti Kehadiran"
-  on storage.objects for update
-  using (bucket_id = 'bukti');
-
 drop policy if exists "Izinkan Baca Bukti Kehadiran" on storage.objects;
-create policy "Izinkan Baca Bukti Kehadiran"
-  on storage.objects for select
-  using (bucket_id = 'bukti');

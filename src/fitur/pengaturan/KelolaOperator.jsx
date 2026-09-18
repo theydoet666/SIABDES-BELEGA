@@ -193,7 +193,7 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
 
       if (error) {
         if (error.message && (error.message.includes('function') || error.message.includes('admin_ganti_password_operator'))) {
-          throw new Error('Fungsi database admin_ganti_password_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/016_ganti_password.sql di Supabase SQL Editor.');
+          throw new Error('Fungsi database admin_ganti_password_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/018_ganti_password.sql di Supabase SQL Editor.');
         }
         throw error;
       }
@@ -253,7 +253,7 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
 
       if (error) {
         if (error.message && (error.message.includes('function') || error.message.includes('admin_edit_operator'))) {
-          throw new Error('Fungsi database admin_edit_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/017_kelola_operator_admin.sql di Supabase SQL Editor.');
+          throw new Error('Fungsi database admin_edit_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/019_kelola_operator_admin.sql di Supabase SQL Editor.');
         }
         throw error;
       }
@@ -298,7 +298,7 @@ export function KelolaOperator({ profilPenggunaSaatIni }) {
 
       if (error) {
         if (error.message && (error.message.includes('function') || error.message.includes('admin_hapus_operator'))) {
-          throw new Error('Fungsi database admin_hapus_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/017_kelola_operator_admin.sql di Supabase SQL Editor.');
+          throw new Error('Fungsi database admin_hapus_operator belum dieksekusi. Harap jalankan file migrasi supabase/migrations/019_kelola_operator_admin.sql di Supabase SQL Editor.');
         }
         throw error;
       }
