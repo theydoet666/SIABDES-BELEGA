@@ -78,6 +78,14 @@ export const router = createBrowserRouter(
       element: <VerifikasiDokumen />,
     },
     {
+      path: '/verifikasi',
+      element: <VerifikasiDokumen />,
+    },
+    {
+      path: '/v/:kode',
+      element: <VerifikasiDokumen />,
+    },
+    {
       path: '/pengaturan',
       element: (
         <PenjagaRute peranDiperlukan="admin">

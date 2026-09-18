@@ -1,17 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase.js';
 import { formatTanggal, formatRentangWaktu } from '../../lib/format.js';
 import { usePengaturan } from '../pengaturan/usePengaturan.js';
 import { LogoAplikasi } from '../../komponen/LogoAplikasi.jsx';
 import { Pemuat } from '../../komponen/umum/Pemuat.jsx';
+import { Masukan } from '../../komponen/umum/Masukan.jsx';
+import { Tombol } from '../../komponen/umum/Tombol.jsx';
 
 export default function VerifikasiDokumen() {
-  const { kode } = useParams();
+  const { kode: kodeParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { pengaturan } = usePengaturan();
 
+  const kode = kodeParam || searchParams.get('kode') || searchParams.get('k') || '';
+
+  const [inputKodeManual, setInputKodeManual] = useState('');
   const [rapat, setRapat] = useState(null);
-  const [memuat, setMemuat] = useState(true);
+  const [memuat, setMemuat] = useState(Boolean(kode));
   const [galat, setGalat] = useState('');
   const [waktuCek] = useState(() => new Date());
 
@@ -20,7 +27,7 @@ export default function VerifikasiDokumen() {
 
     async function muatInfoRapat() {
       if (!kode) {
-        setGalat('Kode verifikasi rapat tidak disertakan.');
+        setGalat('');
         setMemuat(false);
         return;
       }
@@ -89,6 +96,50 @@ export default function VerifikasiDokumen() {
             <div className="py-12 text-center">
               <Pemuat pesan="Memverifikasi keabsahan dokumen daftar hadir..." />
             </div>
+          ) : !kode ? (
+            <div className="space-y-4 py-2">
+              <div className="text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-daun/10 text-daun border border-daun/20 mb-3">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-bold text-tinta">Verifikasi Dokumen Daftar Hadir</h3>
+                <p className="mt-1 text-xs text-tinta/70">
+                  Masukkan 4 karakter kode rapat yang tertera pada lembar daftar hadir untuk memverifikasi keabsahan dokumen.
+                </p>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (inputKodeManual.trim()) {
+                    navigate(`/verifikasi/${inputKodeManual.trim().toUpperCase()}`);
+                  }
+                }}
+                className="space-y-3 pt-2"
+              >
+                <div>
+                  <label className="block text-xs font-bold text-tinta">Kode Rapat</label>
+                  <Masukan
+                    type="text"
+                    value={inputKodeManual}
+                    onChange={(e) => setInputKodeManual(e.target.value.toUpperCase())}
+                    placeholder="Contoh: X8KF"
+                    maxLength={4}
+                    required
+                    className="mt-1 text-center font-mono text-lg font-bold tracking-widest uppercase"
+                  />
+                </div>
+
+                <Tombol
+                  type="submit"
+                  className="w-full h-11 rounded-xl bg-daun text-xs font-bold text-white shadow hover:bg-daun-tua"
+                >
+                  🔍 Periksa Keabsahan Dokumen
+                </Tombol>
+              </form>
+            </div>
           ) : galat ? (
             <div className="text-center py-6">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600 border border-red-200 mb-4">
@@ -100,10 +151,10 @@ export default function VerifikasiDokumen() {
               <p className="mt-2 text-xs text-tinta/70 leading-relaxed">{galat}</p>
               <div className="mt-6">
                 <Link
-                  to="/"
+                  to="/verifikasi"
                   className="inline-flex items-center gap-1.5 rounded-xl bg-daun px-4 py-2 text-xs font-bold text-white shadow hover:bg-daun-tua"
                 >
-                  Kembali ke Halaman Utama
+                  Coba Kode Lain
                 </Link>
               </div>
             </div>
