@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import QRCode from 'qrcode';
 import { useDashboardKehadiran } from '../../hooks/useDashboardKehadiran.js';
 import { usePengaturan } from '../pengaturan/usePengaturan.js';
 import { LogoAplikasi } from '../../komponen/LogoAplikasi.jsx';
@@ -17,6 +18,34 @@ export default function LembarCetak() {
   const [mapUrlTtd, setMapUrlTtd] = useState({});
   const [memuatTtd, setMemuatTtd] = useState(false);
   const [waktuCetak, setWaktuCetak] = useState(() => new Date());
+  const [dataUrlQrVerifikasi, setDataUrlQrVerifikasi] = useState('');
+  const [tampilkanQrVerifikasi, setTampilkanQrVerifikasi] = useState(true);
+
+  // Buat QR Code Verifikasi Dokumen Daftar Hadir
+  useEffect(() => {
+    if (!rapat?.kode) return;
+
+    const hostAsal = window.location.origin;
+    const domainPublik = import.meta.env.VITE_APP_URL || 'https://siabdes.belega.id';
+    const basisUrl =
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? domainPublik
+        : hostAsal;
+
+    const urlVerifikasi = `${basisUrl}/verifikasi/${rapat.kode}`;
+
+    QRCode.toDataURL(urlVerifikasi, {
+      width: 200,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    })
+      .then(setDataUrlQrVerifikasi)
+      .catch((err) => console.error('Gagal membuat QR Verifikasi cetak:', err));
+  }, [rapat?.kode]);
 
   const tanganiCetak = () => {
     setWaktuCetak(new Date());
@@ -204,8 +233,17 @@ export default function LembarCetak() {
           </div>
 
           <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs font-sans font-semibold text-gray-700 cursor-pointer select-none bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 hover:bg-gray-100 transition shadow-sm">
+              <input
+                type="checkbox"
+                checked={tampilkanQrVerifikasi}
+                onChange={(e) => setTampilkanQrVerifikasi(e.target.checked)}
+                className="rounded border-gray-300 text-pena focus:ring-pena h-3.5 w-3.5 accent-pena"
+              />
+              <span>QR Verifikasi</span>
+            </label>
             <span className="text-[11px] font-sans text-gray-500 hidden md:inline">
-              💡 Pastikan opsi <strong>"Header and footers"</strong> tidak dicentang di jendela cetak
+              💡 Opsi <strong>"Header and footers"</strong> jangan dicentang
             </span>
             <button
               type="button"
@@ -406,13 +444,40 @@ export default function LembarCetak() {
           </div>
         </div>
 
-        {/* Footer Dokumen Cetak Resmi */}
+        {/* Footer Dokumen Cetak Resmi & QR Verifikasi */}
         <div className="footer-dokumen-cetak mt-8 pt-3 border-t border-gray-400 flex items-center justify-between text-[10px] font-sans text-gray-600 print:text-black">
-          <div>
-            Dicetak: {formatWaktuCetak(waktuCetak)}
-          </div>
-          <div className="font-semibold uppercase tracking-wider">
-            SIABDES BELEGA — Absensi Rapat Desa
+          {tampilkanQrVerifikasi && dataUrlQrVerifikasi ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={dataUrlQrVerifikasi}
+                alt="QR Verifikasi Dokumen"
+                className="h-14 w-14 border border-black/30 p-0.5 object-contain"
+              />
+              <div className="text-left leading-tight">
+                <div className="font-bold text-[9px] uppercase tracking-wider text-black">
+                  Verifikasi Dokumen Resmi
+                </div>
+                <div className="text-[8.5px] text-gray-700 mt-0.5">
+                  Pindai QR untuk verifikasi keabsahan daftar hadir
+                </div>
+                <div className="font-mono text-[8.5px] text-gray-600 mt-0.5">
+                  KODE: {rapat.kode}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="font-semibold uppercase tracking-wider text-[9px]">
+              SIABDES BELEGA — Absensi Rapat Desa
+            </div>
+          )}
+
+          <div className="text-right leading-tight">
+            <div>
+              Dicetak: {formatWaktuCetak(waktuCetak)}
+            </div>
+            <div className="font-semibold uppercase tracking-wider text-[9px] mt-0.5">
+              {pengaturan?.nama_desa || 'Pemerintah Desa Belega'}
+            </div>
           </div>
         </div>
       </div>

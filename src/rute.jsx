@@ -7,6 +7,7 @@ import DetailRapat from './fitur/rapat/DetailRapat.jsx';
 import DashboardRapat from './fitur/dashboard/DashboardRapat.jsx';
 import LembarCetak from './fitur/keluaran/LembarCetak.jsx';
 import AlurCheckin from './fitur/registrasi/AlurCheckin.jsx';
+import VerifikasiDokumen from './fitur/publik/VerifikasiDokumen.jsx';
 import HalamanPengaturan from './fitur/pengaturan/HalamanPengaturan.jsx';
 import HalamanPrivasi from './fitur/privasi/HalamanPrivasi.jsx';
 
@@ -71,6 +72,10 @@ export const router = createBrowserRouter(
     {
       path: '/r/:kode',
       element: <AlurCheckin jalur="mandiri" />,
+    },
+    {
+      path: '/verifikasi/:kode',
+      element: <VerifikasiDokumen />,
     },
     {
       path: '/pengaturan',
