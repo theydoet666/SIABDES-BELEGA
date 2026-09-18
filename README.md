@@ -73,9 +73,21 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 > **PERINGATAN KEAMANAN**: Jangan pernah menaruh `SUPABASE_SERVICE_ROLE_KEY` pada file `.env` frontend atau kode aplikasi.
 
 ### 3. Migrasi Basis Data Supabase
-Eksekusi file migrasi SQL pada SQL Editor Supabase Dashboard Anda:
-- Eksekusi file gabungan: `supabase/000_semua_migrasi.sql`
-- Atau eksekusi berurutan dari `supabase/migrations/001_skema_awal.sql` sampai `008_retensi_dan_privasi.sql`.
+Terapkan seluruh skema dan kebijakan keamanan pada proyek Supabase Anda:
+
+- **Cara 1 (Supabase CLI - Direkomendasikan)**:
+  ```bash
+  supabase db push
+  ```
+- **Cara 2 (Supabase SQL Editor - Berurutan)**:
+  Jalankan berkas migrasi pada folder `supabase/migrations/` secara berurutan sesuai nomor:
+  - `001_tipe_dan_tabel.sql` hingga `019_kelola_operator_admin.sql`
+- **Cara 3 (File Bundel Otomatis Terbaru)**:
+  Jalankan perintah berikut untuk menghasilkan berkas gabungan skema terbaru:
+  ```bash
+  npm run db:bundle
+  ```
+  Kemudian salin dan jalankan isi berkas yang dihasilkan (`supabase/skema_lengkap_terbaru.sql`) pada SQL Editor Supabase Dashboard Anda.
 
 ### 4. Jalankan Server Pengembangan
 ```bash

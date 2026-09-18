@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:bundle": "node scripts/gabung_migrasi.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
