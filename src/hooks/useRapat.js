@@ -78,10 +78,22 @@ export function useRapat() {
       const ttdLokal = ambilPenandatanganLokal(rapatId);
       return {
         ...data,
+        ttd_pelaksana_jabatan:
+          data.ttd_pelaksana_jabatan || ttdLokal?.ttd_pelaksana_jabatan || 'Kasi Pemerintahan',
+        ttd_pelaksana_nama:
+          data.ttd_pelaksana_nama || ttdLokal?.ttd_pelaksana_nama || 'Ni Made Arini',
+        ttd_sekdes_jabatan:
+          data.ttd_sekdes_jabatan || ttdLokal?.ttd_sekdes_jabatan || 'Sekretaris Desa',
+        ttd_sekdes_nama:
+          data.ttd_sekdes_nama || ttdLokal?.ttd_sekdes_nama || 'Gusti Ketut Amertayasa, S.M',
+        ttd_perbekel_jabatan:
+          data.ttd_perbekel_jabatan || ttdLokal?.ttd_perbekel_jabatan || data.penandatangan_jabatan || 'Plt. Perbekel Belega',
+        ttd_perbekel_nama:
+          data.ttd_perbekel_nama || ttdLokal?.ttd_perbekel_nama || data.penandatangan_nama || 'Gusti Ketut Amertayasa, S.M',
         penandatangan_nama:
-          data.penandatangan_nama || ttdLokal?.penandatangan_nama || 'I WAYAN SUDARSANA, S.Sos.',
+          data.penandatangan_nama || data.ttd_perbekel_nama || ttdLokal?.penandatangan_nama || 'Gusti Ketut Amertayasa, S.M',
         penandatangan_jabatan:
-          data.penandatangan_jabatan || ttdLokal?.penandatangan_jabatan || 'Perbekel Belega',
+          data.penandatangan_jabatan || data.ttd_perbekel_jabatan || ttdLokal?.penandatangan_jabatan || 'Plt. Perbekel Belega',
         penandatangan_nip: data.penandatangan_nip || ttdLokal?.penandatangan_nip || '',
         penandatangan_lokasi: data.penandatangan_lokasi || ttdLokal?.penandatangan_lokasi || 'Belega',
       };
@@ -115,11 +127,17 @@ export function useRapat() {
 
       let hasil = await supabase.from('rapat').insert([payload]).select().single();
 
-      // Jika kolom penandatangan_* belum ada di database Supabase (PGRST204)
+      // Jika kolom penandatangan 3 pihak belum ada di database Supabase (PGRST204)
       if (hasil.error) {
         if (hasil.error.code === 'PGRST204' || hasil.error.message?.includes('schema cache')) {
-          console.warn('Kolom penandatangan belum ada di database Supabase, menggunakan fallback kompatibilitas...');
+          console.warn('Kolom penandatangan 3 pihak belum ada di database Supabase, menggunakan fallback kompatibilitas...');
           const {
+            ttd_pelaksana_jabatan,
+            ttd_pelaksana_nama,
+            ttd_sekdes_jabatan,
+            ttd_sekdes_nama,
+            ttd_perbekel_jabatan,
+            ttd_perbekel_nama,
             penandatangan_nama,
             penandatangan_jabatan,
             penandatangan_nip,
@@ -132,6 +150,12 @@ export function useRapat() {
 
           if (hasil.data?.id) {
             simpanPenandatanganLokal(hasil.data.id, {
+              ttd_pelaksana_jabatan,
+              ttd_pelaksana_nama,
+              ttd_sekdes_jabatan,
+              ttd_sekdes_nama,
+              ttd_perbekel_jabatan,
+              ttd_perbekel_nama,
               penandatangan_nama,
               penandatangan_jabatan,
               penandatangan_nip,
@@ -141,6 +165,12 @@ export function useRapat() {
 
           return {
             ...hasil.data,
+            ttd_pelaksana_jabatan,
+            ttd_pelaksana_nama,
+            ttd_sekdes_jabatan,
+            ttd_sekdes_nama,
+            ttd_perbekel_jabatan,
+            ttd_perbekel_nama,
             penandatangan_nama,
             penandatangan_jabatan,
             penandatangan_nip,
@@ -153,6 +183,12 @@ export function useRapat() {
 
       if (hasil.data?.id) {
         simpanPenandatanganLokal(hasil.data.id, {
+          ttd_pelaksana_jabatan: payload.ttd_pelaksana_jabatan,
+          ttd_pelaksana_nama: payload.ttd_pelaksana_nama,
+          ttd_sekdes_jabatan: payload.ttd_sekdes_jabatan,
+          ttd_sekdes_nama: payload.ttd_sekdes_nama,
+          ttd_perbekel_jabatan: payload.ttd_perbekel_jabatan,
+          ttd_perbekel_nama: payload.ttd_perbekel_nama,
           penandatangan_nama: payload.penandatangan_nama,
           penandatangan_jabatan: payload.penandatangan_jabatan,
           penandatangan_nip: payload.penandatangan_nip,
@@ -175,6 +211,12 @@ export function useRapat() {
     setGalat(null);
     try {
       simpanPenandatanganLokal(rapatId, {
+        ttd_pelaksana_jabatan: dataForm.ttd_pelaksana_jabatan,
+        ttd_pelaksana_nama: dataForm.ttd_pelaksana_nama,
+        ttd_sekdes_jabatan: dataForm.ttd_sekdes_jabatan,
+        ttd_sekdes_nama: dataForm.ttd_sekdes_nama,
+        ttd_perbekel_jabatan: dataForm.ttd_perbekel_jabatan,
+        ttd_perbekel_nama: dataForm.ttd_perbekel_nama,
         penandatangan_nama: dataForm.penandatangan_nama,
         penandatangan_jabatan: dataForm.penandatangan_jabatan,
         penandatangan_nip: dataForm.penandatangan_nip,
@@ -193,8 +235,14 @@ export function useRapat() {
 
       if (hasil.error) {
         if (hasil.error.code === 'PGRST204' || hasil.error.message?.includes('schema cache')) {
-          console.warn('Kolom penandatangan belum ada di database Supabase, menggunakan fallback kompatibilitas...');
+          console.warn('Kolom penandatangan 3 pihak belum ada di database Supabase, menggunakan fallback kompatibilitas...');
           const {
+            ttd_pelaksana_jabatan,
+            ttd_pelaksana_nama,
+            ttd_sekdes_jabatan,
+            ttd_sekdes_nama,
+            ttd_perbekel_jabatan,
+            ttd_perbekel_nama,
             penandatangan_nama,
             penandatangan_jabatan,
             penandatangan_nip,
@@ -220,6 +268,12 @@ export function useRapat() {
 
       return {
         ...hasil.data,
+        ttd_pelaksana_jabatan: dataForm.ttd_pelaksana_jabatan,
+        ttd_pelaksana_nama: dataForm.ttd_pelaksana_nama,
+        ttd_sekdes_jabatan: dataForm.ttd_sekdes_jabatan,
+        ttd_sekdes_nama: dataForm.ttd_sekdes_nama,
+        ttd_perbekel_jabatan: dataForm.ttd_perbekel_jabatan,
+        ttd_perbekel_nama: dataForm.ttd_perbekel_nama,
         penandatangan_nama: dataForm.penandatangan_nama,
         penandatangan_jabatan: dataForm.penandatangan_jabatan,
         penandatangan_nip: dataForm.penandatangan_nip,

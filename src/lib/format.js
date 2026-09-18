@@ -34,14 +34,28 @@ export function formatTanggalSingkat(stringTanggal) {
   }
 }
 
-export function formatJam(stringJam) {
-  if (!stringJam) return '-';
+export function formatJam(stringJam, sertakanZona = true) {
+  if (!stringJam) return '';
   // Ambil HH:MM dari HH:MM:SS atau string waktu
   const bagian = stringJam.split(':');
   if (bagian.length >= 2) {
-    return `${bagian[0]}.${bagian[1]} WITA`;
+    const waktu = `${bagian[0]}.${bagian[1]}`;
+    return sertakanZona ? `${waktu} WITA` : waktu;
   }
   return stringJam;
+}
+
+export function formatRentangWaktu(jamMulai, jamSelesai, pemisah = 's/d') {
+  const mulai = formatJam(jamMulai, false);
+  const selesai = formatJam(jamSelesai, false);
+
+  if (mulai && selesai) {
+    return `${mulai} ${pemisah} ${selesai} WITA`;
+  }
+  if (mulai) {
+    return `${mulai} WITA ${pemisah} Selesai`;
+  }
+  return '-';
 }
 
 export function formatWaktuLengkap(stringIso) {

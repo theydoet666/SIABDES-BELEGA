@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useDashboardKehadiran } from '../../hooks/useDashboardKehadiran.js';
 import { usePengaturan } from '../pengaturan/usePengaturan.js';
 import { LogoAplikasi } from '../../komponen/LogoAplikasi.jsx';
-import { formatTanggal, formatJam, formatWaktuCetak } from '../../lib/format.js';
+import { formatTanggal, formatRentangWaktu, formatWaktuCetak } from '../../lib/format.js';
 import { dapatkanUrlGambarBukti } from '../../lib/checkin.js';
 import { db } from '../../lib/db.js';
 import { apakahNamaSama } from '../../lib/pencarian.js';
@@ -156,16 +156,40 @@ export default function LembarCetak() {
     return `${tempat}, ${new Intl.DateTimeFormat('id-ID', opsi).format(dateObj)}`;
   };
 
-  const namaLokasiTtd = rapat.penandatangan_lokasi || pengaturan?.nama_desa?.replace(/^Pemerintah\s+Desa\s+/i, '').replace(/^Desa\s+/i, '') || 'Belega';
-  const jabatanTtd = rapat.penandatangan_jabatan || (pengaturan?.nama_desa ? `Perbekel ${pengaturan.nama_desa}` : 'Perbekel Belega');
-  const namaTtd = rapat.penandatangan_nama || 'I WAYAN SUDARSANA, S.Sos.';
-  const nipTtd = rapat.penandatangan_nip;
+  const namaBersihDesa =
+    pengaturan?.nama_desa
+      ?.replace(/^Pemerintah\s+Desa\s+/i, '')
+      ?.replace(/^Kantor\s+Perbekel\s+Desa\s+/i, '')
+      ?.replace(/^Kantor\s+Desa\s+/i, '')
+      ?.replace(/^Perbekel\s+Desa\s+/i, '')
+      ?.replace(/^Desa\s+/i, '')
+      ?.trim() || 'Belega';
+
+  const namaLokasiTtd = rapat.penandatangan_lokasi || namaBersihDesa;
+  const jabatanPelaksana = rapat.ttd_pelaksana_jabatan || 'Kasi Pemerintahan';
+  const namaPelaksana = rapat.ttd_pelaksana_nama || 'Ni Made Arini';
+  const jabatanSekdes = rapat.ttd_sekdes_jabatan || 'Sekretaris Desa';
+  const namaSekdes = rapat.ttd_sekdes_nama || 'Gusti Ketut Amertayasa, S.M';
+
+  const jabatanPerbekelMentah =
+    rapat.ttd_perbekel_jabatan ||
+    rapat.penandatangan_jabatan ||
+    `Plt. Perbekel ${namaBersihDesa}`;
+
+  // Bersihkan jika ada duplikasi kata "Perbekel Perbekel" atau "Kantor Perbekel"
+  const jabatanPerbekel = jabatanPerbekelMentah
+    .replace(/Perbekel\s+Perbekel/gi, 'Perbekel')
+    .replace(/Plt\.\s*Perbekel\s+Kantor\s+Perbekel/gi, 'Plt. Perbekel')
+    .replace(/Perbekel\s+Kantor\s+Perbekel/gi, 'Perbekel')
+    .replace(/Perbekel\s+Perbekel\s+Desa/gi, 'Perbekel Desa');
+
+  const namaPerbekel = rapat.ttd_perbekel_nama || rapat.penandatangan_nama || 'Gusti Ketut Amertayasa, S.M';
 
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white text-black font-serif">
       {/* Kontrol Layar Atas (Disembunyikan saat mencetak) */}
       <div className="tanpa-cetak sticky top-0 z-20 border-b border-gray-300 bg-white/95 px-4 py-3 shadow-md backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
+        <div className="mx-auto flex max-w-4xl flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
           <div className="flex items-center gap-3">
             <Link
               to={`/rapat/${rapat.id}/dashboard`}
@@ -179,7 +203,10 @@ export default function LembarCetak() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-sans text-gray-500 hidden md:inline">
+              💡 Pastikan opsi <strong>"Header and footers"</strong> tidak dicentang di jendela cetak
+            </span>
             <button
               type="button"
               onClick={tanganiCetak}
@@ -191,30 +218,30 @@ export default function LembarCetak() {
         </div>
       </div>
 
-      {/* Lembar Cetak Dokumen Resmi (Ukuran A4 dengan Margin 2cm / 20mm) */}
+      {/* Lembar Cetak Dokumen Resmi (Ukuran A4 dengan Margin 20mm / 2cm) */}
       <div className="lembar-dokumen-cetak mx-auto my-6 w-full max-w-[210mm] bg-white p-[20mm] shadow-lg print:m-0 print:max-w-none print:w-full print:p-0 print:shadow-none">
-        {/* Kop Surat Resmi Sesuai Lampiran B */}
-        <div className="relative flex items-center justify-center pb-1">
+        {/* Kop Surat Resmi dengan Logo Proporsional */}
+        <div className="relative flex items-center min-h-[26mm] pb-2">
           {pengaturan?.logo_url && (
-            <div className="absolute left-0 top-0 flex items-center justify-center">
-              <LogoAplikasi
-                ukuran="md"
-                logoUrl={pengaturan.logo_url}
-                className="h-16 w-16 border-0 shadow-none p-0"
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+              <img
+                src={pengaturan.logo_url}
+                alt="Logo Pemerintah Desa"
+                className="h-24 w-24 object-contain max-h-[26mm] max-w-[26mm]"
               />
             </div>
           )}
-          <div className="text-center w-full px-16">
-            <h2 className="text-sm font-bold tracking-wider uppercase leading-tight">
-              {pengaturan?.kabupaten ? `Pemerintah ${pengaturan.kabupaten}` : 'Pemerintah Kabupaten Gianyar'}
+          <div className="text-center w-full pl-24 pr-4">
+            <h2 className="text-sm font-bold tracking-wider uppercase leading-snug">
+              {pengaturan?.kabupaten ? (pengaturan.kabupaten.toLowerCase().startsWith('pemerintah') ? pengaturan.kabupaten : `Pemerintah ${pengaturan.kabupaten}`) : 'Pemerintah Kabupaten Gianyar'}
             </h2>
-            <h2 className="text-sm font-bold tracking-wider uppercase leading-tight">
+            <h2 className="text-sm font-bold tracking-wider uppercase leading-snug">
               {pengaturan?.kecamatan || 'Kecamatan Blahbatuh'}
             </h2>
-            <h1 className="text-base font-extrabold tracking-wider uppercase leading-tight">
-              {pengaturan?.nama_desa || 'Desa Belega'}
+            <h1 className="text-base font-extrabold tracking-wider uppercase leading-snug">
+              {pengaturan?.nama_desa || 'Kantor Perbekel Desa Belega'}
             </h1>
-            <p className="text-[10px] font-sans text-gray-600 mt-0.5">
+            <p className="text-[10px] font-sans text-gray-600 mt-1">
               {pengaturan?.alamat_desa || 'Jalan Raya Belega, Blahbatuh, Gianyar, Bali — Kode Pos 80581'}
             </p>
           </div>
@@ -240,7 +267,7 @@ export default function LembarCetak() {
 
           <div className="col-span-3 sm:col-span-2">Waktu</div>
           <div className="col-span-9 sm:col-span-10">
-            : {formatJam(rapat.jam_mulai)} s/d {formatJam(rapat.jam_selesai) || 'Selesai'} WITA
+            : {formatRentangWaktu(rapat.jam_mulai, rapat.jam_selesai, 's/d')}
           </div>
 
           <div className="col-span-3 sm:col-span-2">Tempat</div>
@@ -338,26 +365,44 @@ export default function LembarCetak() {
           </p>
         </div>
 
-        {/* Blok Tanda Tangan Dinamis Sesuai Konfigurasi Rapat (PRD KL-05) */}
+        {/* Blok Tanda Tangan 3 Pihak Dokumen Resmi (PRD KL-05) */}
         <div
-          className="blok-ttd-rapat mt-6 flex justify-end"
+          className="blok-ttd-rapat mt-8 space-y-6"
           style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
         >
-          <div className="w-72 text-center text-xs">
-            <p>{formatTanggalTtd(rapat.tanggal, namaLokasiTtd)}</p>
-            <p className="font-bold mt-0.5">{jabatanTtd},</p>
-
-            {/* Ruang Tanda Tangan & Cap */}
-            <div className="h-20" />
-
-            <p className="font-bold uppercase underline underline-offset-2">
-              ( {namaTtd} )
-            </p>
-            {nipTtd && (
-              <p className="text-[11px] font-sans text-gray-800 mt-0.5">
-                {nipTtd.startsWith('NIP') ? nipTtd : `NIP. ${nipTtd}`}
+          {/* Baris 1: Kiri (Verifikasi Sekdes) & Kanan (Pelaksana Kegiatan dengan Tanggal) */}
+          <div className="flex items-start justify-between text-xs">
+            {/* Kiri Atas: Verifikasi Sekretaris Desa */}
+            <div className="w-64 text-center">
+              <p className="font-normal">Telah dilakukan verifikasi</p>
+              <p className="font-medium mt-0.5">{jabatanSekdes}</p>
+              <div className="h-16" />
+              <p className="font-medium">
+                ({namaSekdes})
               </p>
-            )}
+            </div>
+
+            {/* Kanan Atas: Pelaksana Kegiatan & Tanggal */}
+            <div className="w-64 text-center">
+              <p className="font-normal">{formatTanggalTtd(rapat.tanggal, namaLokasiTtd)}</p>
+              <p className="font-medium mt-0.5">{jabatanPelaksana}</p>
+              <div className="h-16" />
+              <p className="font-medium">
+                ({namaPelaksana})
+              </p>
+            </div>
+          </div>
+
+          {/* Baris 2: Tengah Bawah (Mengetahui Perbekel) */}
+          <div className="flex justify-center text-xs">
+            <div className="w-64 text-center">
+              <p className="font-normal">Mengetahui :</p>
+              <p className="font-medium mt-0.5">{jabatanPerbekel}</p>
+              <div className="h-16" />
+              <p className="font-medium">
+                ({namaPerbekel})
+              </p>
+            </div>
           </div>
         </div>
 

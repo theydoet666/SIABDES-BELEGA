@@ -12,7 +12,7 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 20mm 20mm 20mm 20mm; /* Margin 2cm: Atas 2, Kanan 2, Bawah 2, Kiri 2 */
+    margin: 20mm 20mm 20mm 20mm; /* Margin resmi dokumen: Atas 2cm, Kanan 2cm, Bawah 2cm, Kiri 2cm */
   }
 
   html,
@@ -32,8 +32,9 @@
 
   .lembar-dokumen-cetak {
     width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0 !important; /* Dikosongkan saat print karena margin 2cm sudah diterapkan oleh @page */
     box-shadow: none !important;
     border: none !important;
   }

@@ -40,22 +40,32 @@ create table if not exists profil (
 
 -- RAPAT
 create table if not exists rapat (
-  id                uuid primary key default gen_random_uuid(),
-  kode              text not null unique check (kode ~ '^[A-HJ-NP-Z2-9]{4}$'),
-  judul             text not null,
-  tanggal           date not null,
-  jam_mulai         time,
-  jam_selesai       time,
-  tempat            text not null,
-  penyelenggara     text not null default 'Pemerintah Desa Belega',
-  catatan           text,
-  status            status_rapat not null default 'draft',
-  pin_kiosk         text,
-  retensi_hari      int not null default 90,
-  foto_dihapus_pada timestamptz,
-  dibuat_oleh       uuid not null references profil(id),
-  dibuat_pada       timestamptz not null default now(),
-  diperbarui_pada   timestamptz not null default now()
+  id                    uuid primary key default gen_random_uuid(),
+  kode                  text not null unique check (kode ~ '^[A-HJ-NP-Z2-9]{4}$'),
+  judul                 text not null,
+  tanggal               date not null,
+  jam_mulai             time,
+  jam_selesai           time,
+  tempat                text not null,
+  penyelenggara         text not null default 'Pemerintah Desa Belega',
+  catatan               text,
+  status                status_rapat not null default 'draft',
+  pin_kiosk             text,
+  retensi_hari          int not null default 90,
+  foto_dihapus_pada     timestamptz,
+  ttd_pelaksana_jabatan text default 'Kasi Pemerintahan',
+  ttd_pelaksana_nama    text default 'Ni Made Arini',
+  ttd_sekdes_jabatan    text default 'Sekretaris Desa',
+  ttd_sekdes_nama       text default 'Gusti Ketut Amertayasa, S.M',
+  ttd_perbekel_jabatan  text default 'Plt. Perbekel Belega',
+  ttd_perbekel_nama     text default 'Gusti Ketut Amertayasa, S.M',
+  penandatangan_lokasi  text default 'Belega',
+  penandatangan_nama    text default 'Gusti Ketut Amertayasa, S.M',
+  penandatangan_jabatan text default 'Plt. Perbekel Belega',
+  penandatangan_nip     text default '',
+  dibuat_oleh           uuid not null references profil(id),
+  dibuat_pada           timestamptz not null default now(),
+  diperbarui_pada       timestamptz not null default now()
 );
 
 create index if not exists idx_rapat_tanggal on rapat (tanggal desc);

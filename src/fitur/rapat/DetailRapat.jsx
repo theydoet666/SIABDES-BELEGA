@@ -11,7 +11,7 @@ import { ImporCsv } from '../undangan/ImporCsv.jsx';
 import { ModalPilihUndanganRiwayat } from '../undangan/ModalPilihUndanganRiwayat.jsx';
 import { ModalEditRapat } from './ModalEditRapat.jsx';
 import { PanelPerluDitinjau } from '../dashboard/PanelPerluDitinjau.jsx';
-import { formatTanggal, formatJam } from '../../lib/format.js';
+import { formatTanggal, formatJam, formatRentangWaktu } from '../../lib/format.js';
 import { hapusSemuaFotoRapat } from '../../lib/retensi.js';
 import { Lencana } from '../../komponen/umum/Lencana.jsx';
 import { Pemuat } from '../../komponen/umum/Pemuat.jsx';
@@ -323,7 +323,7 @@ export default function DetailRapat() {
             <div>
               <span className="block font-semibold text-tinta">Waktu Rapat:</span>
               <span className="mt-0.5 block">
-                {formatJam(rapat.jam_mulai)} — {formatJam(rapat.jam_selesai) || 'Selesai'}
+                {formatRentangWaktu(rapat.jam_mulai, rapat.jam_selesai, '—')}
               </span>
             </div>
             <div>
@@ -331,9 +331,13 @@ export default function DetailRapat() {
               <span className="mt-0.5 block truncate">{rapat.tempat}</span>
             </div>
             <div>
-              <span className="block font-semibold text-tinta">Penandatangan Laporan:</span>
-              <span className="mt-0.5 block font-medium truncate text-daun" title={rapat.penandatangan_nama || 'I WAYAN SUDARSANA, S.Sos.'}>
-                {rapat.penandatangan_jabatan || 'Perbekel Belega'} — {rapat.penandatangan_nama || 'I WAYAN SUDARSANA, S.Sos.'}
+              <span className="block font-semibold text-tinta">Penandatangan Laporan (3 Pihak):</span>
+              <span className="mt-0.5 block font-medium text-daun" title={`${rapat.ttd_pelaksana_nama || ''} | ${rapat.ttd_sekdes_nama || ''} | ${rapat.ttd_perbekel_nama || ''}`}>
+                {rapat.ttd_pelaksana_jabatan || 'Pelaksana'}: {rapat.ttd_pelaksana_nama || '-'}
+                <br />
+                {rapat.ttd_sekdes_jabatan || 'Sekdes'}: {rapat.ttd_sekdes_nama || '-'}
+                <br />
+                {rapat.ttd_perbekel_jabatan || 'Perbekel'}: {rapat.ttd_perbekel_nama || '-'}
               </span>
             </div>
           </div>

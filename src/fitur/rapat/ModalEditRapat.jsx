@@ -19,10 +19,15 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
     catatan: '',
     pin_kiosk: '',
     retensi_hari: 90,
-    penandatangan_jabatan: `Perbekel ${namaDesa}`,
-    penandatangan_nama: 'I WAYAN SUDARSANA, S.Sos.',
-    penandatangan_nip: '',
+    ttd_pelaksana_jabatan: 'Kasi Pemerintahan',
+    ttd_pelaksana_nama: 'Ni Made Arini',
+    ttd_sekdes_jabatan: 'Sekretaris Desa',
+    ttd_sekdes_nama: 'Gusti Ketut Amertayasa, S.M',
+    ttd_perbekel_jabatan: `Plt. Perbekel ${namaDesa}`,
+    ttd_perbekel_nama: 'Gusti Ketut Amertayasa, S.M',
     penandatangan_lokasi: namaDesa,
+    penandatangan_jabatan: `Plt. Perbekel ${namaDesa}`,
+    penandatangan_nama: 'Gusti Ketut Amertayasa, S.M',
   });
 
   const [sedangSimpan, setSedangSimpan] = useState(false);
@@ -40,25 +45,41 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
         catatan: rapat.catatan || '',
         pin_kiosk: '',
         retensi_hari: rapat.retensi_hari || 90,
-        penandatangan_jabatan: rapat.penandatangan_jabatan || `Perbekel ${namaDesa}`,
-        penandatangan_nama: rapat.penandatangan_nama || 'I WAYAN SUDARSANA, S.Sos.',
-        penandatangan_nip: rapat.penandatangan_nip || '',
+        ttd_pelaksana_jabatan: rapat.ttd_pelaksana_jabatan || 'Kasi Pemerintahan',
+        ttd_pelaksana_nama: rapat.ttd_pelaksana_nama || 'Ni Made Arini',
+        ttd_sekdes_jabatan: rapat.ttd_sekdes_jabatan || 'Sekretaris Desa',
+        ttd_sekdes_nama: rapat.ttd_sekdes_nama || 'Gusti Ketut Amertayasa, S.M',
+        ttd_perbekel_jabatan: rapat.ttd_perbekel_jabatan || rapat.penandatangan_jabatan || `Plt. Perbekel ${namaDesa}`,
+        ttd_perbekel_nama: rapat.ttd_perbekel_nama || rapat.penandatangan_nama || 'Gusti Ketut Amertayasa, S.M',
         penandatangan_lokasi: rapat.penandatangan_lokasi || namaDesa,
+        penandatangan_jabatan: rapat.ttd_perbekel_jabatan || rapat.penandatangan_jabatan || `Plt. Perbekel ${namaDesa}`,
+        penandatangan_nama: rapat.ttd_perbekel_nama || rapat.penandatangan_nama || 'Gusti Ketut Amertayasa, S.M',
       });
       setPesanGalat('');
     }
   }, [rapat, pengaturan, namaDesa, buka]);
 
   const tanganiUbah = (kunci, nilai) => {
-    setForm((prev) => ({ ...prev, [kunci]: nilai }));
+    setForm((prev) => {
+      const pembaruan = { ...prev, [kunci]: nilai };
+      if (kunci === 'ttd_perbekel_jabatan') pembaruan.penandatangan_jabatan = nilai;
+      if (kunci === 'ttd_perbekel_nama') pembaruan.penandatangan_nama = nilai;
+      return pembaruan;
+    });
   };
 
-  const terapkanPresetTtd = (jabatan, nama = '', nip = '') => {
+  const terapkanPresetPelaksana = (jabatan) => {
     setForm((prev) => ({
       ...prev,
+      ttd_pelaksana_jabatan: jabatan,
+    }));
+  };
+
+  const terapkanPresetPerbekel = (jabatan) => {
+    setForm((prev) => ({
+      ...prev,
+      ttd_perbekel_jabatan: jabatan,
       penandatangan_jabatan: jabatan,
-      penandatangan_nama: nama || prev.penandatangan_nama,
-      penandatangan_nip: nip,
     }));
   };
 
@@ -78,12 +99,16 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
       setPesanGalat('Tempat rapat wajib diisi.');
       return;
     }
-    if (!form.penandatangan_nama?.trim()) {
-      setPesanGalat('Nama penandatangan laporan daftar hadir wajib diisi.');
+    if (!form.ttd_pelaksana_nama?.trim() || !form.ttd_pelaksana_jabatan?.trim()) {
+      setPesanGalat('Jabatan dan nama Pelaksana Kegiatan wajib diisi.');
       return;
     }
-    if (!form.penandatangan_jabatan?.trim()) {
-      setPesanGalat('Jabatan penandatangan laporan daftar hadir wajib diisi.');
+    if (!form.ttd_sekdes_nama?.trim() || !form.ttd_sekdes_jabatan?.trim()) {
+      setPesanGalat('Jabatan dan nama Sekretaris Desa (verifikator) wajib diisi.');
+      return;
+    }
+    if (!form.ttd_perbekel_nama?.trim() || !form.ttd_perbekel_jabatan?.trim()) {
+      setPesanGalat('Jabatan dan nama Perbekel (mengetahui) wajib diisi.');
       return;
     }
 
@@ -197,106 +222,171 @@ export function ModalEditRapat({ buka, tutup, rapat, onSimpan }) {
           </div>
         </div>
 
-        {/* Bagian 2: Penandatangan Laporan Daftar Hadir */}
-        <div className="space-y-3 rounded-xl border border-garis bg-kertas/50 p-4">
-          <div>
+        {/* Bagian 2: Penandatangan Laporan Daftar Hadir (3 Pihak) */}
+        <div className="space-y-4 rounded-xl border border-garis bg-kertas/50 p-4">
+          <div className="border-b border-garis pb-2">
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-daun">
-              2. Penandatangan Laporan Daftar Hadir
+              2. Penandatangan Laporan Daftar Hadir (3 Pihak)
             </h3>
             <p className="text-[11px] text-tinta/70">
-              Nama & jabatan yang dicetak pada bagian tanda tangan lembar kehadiran
+              Pelaksana Kegiatan, Sekretaris Desa (Verifikasi), dan Mengetahui Perbekel
             </p>
           </div>
 
-          {/* Preset Buttons */}
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => terapkanPresetTtd(`Perbekel ${namaDesa}`, 'I WAYAN SUDARSANA, S.Sos.', '')}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
-                form.penandatangan_jabatan.includes('Perbekel')
-                  ? 'border-daun bg-daun text-white'
-                  : 'border-garis bg-white text-tinta hover:bg-garis/50'
-              }`}
-            >
-              🏛️ Perbekel (Kades)
-            </button>
-            <button
-              type="button"
-              onClick={() => terapkanPresetTtd(`Sekretaris Desa ${namaDesa}`, '', '')}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
-                form.penandatangan_jabatan.includes('Sekretaris Desa')
-                  ? 'border-daun bg-daun text-white'
-                  : 'border-garis bg-white text-tinta hover:bg-garis/50'
-              }`}
-            >
-              📑 Sekretaris Desa
-            </button>
-            <button
-              type="button"
-              onClick={() => terapkanPresetTtd(`Ketua BPD ${namaDesa}`, '', '')}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
-                form.penandatangan_jabatan.includes('BPD')
-                  ? 'border-daun bg-daun text-white'
-                  : 'border-garis bg-white text-tinta hover:bg-garis/50'
-              }`}
-            >
-              ⚖️ Ketua BPD
-            </button>
-            <button
-              type="button"
-              onClick={() => terapkanPresetTtd('Ketua Panitia Pelaksana', '', '')}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
-                form.penandatangan_jabatan.includes('Panitia')
-                  ? 'border-daun bg-daun text-white'
-                  : 'border-garis bg-white text-tinta hover:bg-garis/50'
-              }`}
-            >
-              📋 Ketua Panitia
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Titimangsa / Lokasi */}
+          <div>
             <Masukan
-              label="Jabatan Penandatangan"
-              id="edit-penandatangan-jabatan"
-              type="text"
-              value={form.penandatangan_jabatan}
-              onChange={(e) => tanganiUbah('penandatangan_jabatan', e.target.value)}
-              required
-              className="h-9 text-xs bg-white"
-            />
-
-            <Masukan
-              label="Nama Lengkap & Gelar"
-              id="edit-penandatangan-nama"
-              type="text"
-              value={form.penandatangan_nama}
-              onChange={(e) => tanganiUbah('penandatangan_nama', e.target.value)}
-              required
-              className="h-9 text-xs bg-white font-semibold"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Masukan
-              label="NIP / No. Identitas (Opsional)"
-              id="edit-penandatangan-nip"
-              type="text"
-              placeholder="Contoh: NIP. ... atau kosongkan (-)"
-              value={form.penandatangan_nip}
-              onChange={(e) => tanganiUbah('penandatangan_nip', e.target.value)}
-              className="h-9 text-xs bg-white"
-            />
-
-            <Masukan
-              label="Lokasi Tempat Tanda Tangan"
+              label="Lokasi Titimangsa Cetak"
               id="edit-penandatangan-lokasi"
               type="text"
               value={form.penandatangan_lokasi}
               onChange={(e) => tanganiUbah('penandatangan_lokasi', e.target.value)}
-              className="h-9 text-xs bg-white"
+              className="h-9 text-xs bg-white max-w-xs"
             />
+          </div>
+
+          {/* 1. Pelaksana Kegiatan */}
+          <div className="rounded-lg border border-garis bg-white p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-tinta flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-daun/20 text-[10px] font-bold text-daun">1</span>
+                Pelaksana Kegiatan (Kanan Atas)
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              {[
+                'Kasi Pemerintahan',
+                'Kasi Kesejahteraan',
+                'Kasi Pelayanan',
+                'Kaur Keuangan',
+                'Kaur Perencanaan',
+                'Kaur Tata Usaha & Umum',
+                'Ketua Panitia Pelaksana',
+              ].map((jabatan) => (
+                <button
+                  key={jabatan}
+                  type="button"
+                  onClick={() => terapkanPresetPelaksana(jabatan)}
+                  className={`rounded border px-2 py-0.5 text-[11px] transition ${
+                    form.ttd_pelaksana_jabatan === jabatan
+                      ? 'border-daun bg-daun text-white font-bold'
+                      : 'border-garis bg-kertas text-tinta hover:bg-garis'
+                  }`}
+                >
+                  {jabatan}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Masukan
+                label="Jabatan Pelaksana"
+                id="edit-ttd-pelaksana-jabatan"
+                type="text"
+                value={form.ttd_pelaksana_jabatan}
+                onChange={(e) => tanganiUbah('ttd_pelaksana_jabatan', e.target.value)}
+                required
+                className="h-9 text-xs bg-kertas/30"
+              />
+
+              <Masukan
+                label="Nama Pelaksana"
+                id="edit-ttd-pelaksana-nama"
+                type="text"
+                value={form.ttd_pelaksana_nama}
+                onChange={(e) => tanganiUbah('ttd_pelaksana_nama', e.target.value)}
+                required
+                className="h-9 text-xs bg-kertas/30 font-semibold"
+              />
+            </div>
+          </div>
+
+          {/* 2. Sekretaris Desa (Verifikasi) */}
+          <div className="rounded-lg border border-garis bg-white p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-tinta flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-daun/20 text-[10px] font-bold text-daun">2</span>
+                Verifikasi Sekretaris Desa (Kiri Atas)
+              </span>
+              <span className="text-[10px] font-sans text-daun font-semibold">Telah dilakukan verifikasi</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Masukan
+                label="Jabatan Verifikator"
+                id="edit-ttd-sekdes-jabatan"
+                type="text"
+                value={form.ttd_sekdes_jabatan}
+                onChange={(e) => tanganiUbah('ttd_sekdes_jabatan', e.target.value)}
+                required
+                className="h-9 text-xs bg-kertas/30"
+              />
+
+              <Masukan
+                label="Nama Sekretaris Desa"
+                id="edit-ttd-sekdes-nama"
+                type="text"
+                value={form.ttd_sekdes_nama}
+                onChange={(e) => tanganiUbah('ttd_sekdes_nama', e.target.value)}
+                required
+                className="h-9 text-xs bg-kertas/30 font-semibold"
+              />
+            </div>
+          </div>
+
+          {/* 3. Mengetahui Perbekel */}
+          <div className="rounded-lg border border-garis bg-white p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-tinta flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-daun/20 text-[10px] font-bold text-daun">3</span>
+                Mengetahui Perbekel (Tengah Bawah)
+              </span>
+              <span className="text-[10px] font-sans text-tinta/60 font-semibold">Mengetahui :</span>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              {[
+                `Plt. Perbekel ${namaDesa}`,
+                `Perbekel ${namaDesa}`,
+                `Pj. Perbekel ${namaDesa}`,
+              ].map((jabatan) => (
+                <button
+                  key={jabatan}
+                  type="button"
+                  onClick={() => terapkanPresetPerbekel(jabatan)}
+                  className={`rounded border px-2 py-0.5 text-[11px] transition ${
+                    form.ttd_perbekel_jabatan === jabatan
+                      ? 'border-daun bg-daun text-white font-bold'
+                      : 'border-garis bg-kertas text-tinta hover:bg-garis'
+                  }`}
+                >
+                  🏛️ {jabatan}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Masukan
+                label="Jabatan Pimpinan"
+                id="edit-ttd-perbekel-jabatan"
+                type="text"
+                value={form.ttd_perbekel_jabatan}
+                onChange={(e) => tanganiUbah('ttd_perbekel_jabatan', e.target.value)}
+                required
+                className="h-9 text-xs bg-kertas/30"
+              />
+
+              <Masukan
+                label="Nama Perbekel / Plt. Perbekel"
+                id="edit-ttd-perbekel-nama"
+                type="text"
+                value={form.ttd_perbekel_nama}
+                onChange={(e) => tanganiUbah('ttd_perbekel_nama', e.target.value)}
+                required
+                className="h-9 text-xs bg-kertas/30 font-semibold"
+              />
+            </div>
           </div>
         </div>
 
