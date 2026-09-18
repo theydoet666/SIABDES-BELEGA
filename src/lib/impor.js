@@ -12,17 +12,43 @@ export function prosesDataImpor(rows = [], daftarEksisting = []) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    // Cari key yang cocok tanpa peka huruf besar-kecil
+    // Cari key yang cocok tanpa peka huruf besar-kecil & mendukung variasi nama kolom
     const keys = Object.keys(row);
-    const keyNama = keys.find((k) => k.trim().toLowerCase() === 'nama');
-    const keyJabatan = keys.find((k) => k.trim().toLowerCase() === 'jabatan');
-    const keyInstansi = keys.find((k) => k.trim().toLowerCase() === 'instansi');
-    const keyHp = keys.find(
-      (k) =>
-        k.trim().toLowerCase() === 'hp' ||
-        k.trim().toLowerCase() === 'telepon' ||
-        k.trim().toLowerCase() === 'no_hp'
-    );
+    const keyNama = keys.find((k) => {
+      const clean = k.trim().toLowerCase();
+      return clean === 'nama' || clean === 'nama lengkap' || clean === 'nama_lengkap' || clean === 'nama peserta';
+    });
+
+    const keyJabatan = keys.find((k) => {
+      const clean = k.trim().toLowerCase();
+      return clean === 'jabatan' || clean === 'posisi' || clean === 'peran';
+    });
+
+    const keyInstansi = keys.find((k) => {
+      const clean = k.trim().toLowerCase();
+      return (
+        clean === 'instansi' ||
+        clean === 'instansi / banjar' ||
+        clean === 'instansi/banjar' ||
+        clean === 'banjar' ||
+        clean === 'banjar dinas' ||
+        clean === 'dusun' ||
+        clean === 'alamat' ||
+        clean === 'lembaga'
+      );
+    });
+
+    const keyHp = keys.find((k) => {
+      const clean = k.trim().toLowerCase();
+      return (
+        clean === 'hp' ||
+        clean === 'no hp' ||
+        clean === 'no_hp' ||
+        clean === 'no. hp' ||
+        clean === 'telepon' ||
+        clean === 'kontak'
+      );
+    });
 
     const nama = (keyNama ? row[keyNama] : '').toString().trim();
     const jabatan = (keyJabatan ? row[keyJabatan] : '').toString().trim();

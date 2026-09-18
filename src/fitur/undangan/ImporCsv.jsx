@@ -74,17 +74,18 @@ export function ImporCsv({ buka, tutup, onSelesaiImpor, daftarEksisting = [] }) 
 
   const unduhTemplate = () => {
     const barisCsv = [
-      'nama,jabatan,instansi,hp',
-      '"I Wayan Sudarsana, S.Sos",Perbekel,Pemerintah Desa Belega,081234567890',
-      'Ni Made Sriasih,Sekretaris Desa,Pemerintah Desa Belega,',
-      'I Ketut Merta,Kelian Dinas,Banjar Sema,',
+      'No,Nama,Jabatan,Instansi / Banjar',
+      '1,"I Wayan Sudarsana, S.Sos",Perbekel,Pemerintah Desa Belega',
+      '2,Ni Made Sriasih,Sekretaris Desa,Pemerintah Desa Belega',
+      '3,I Ketut Merta,Kelian Dinas,Banjar Sema',
+      '4,Ni Kadek Widiastuti,Kader Posyandu,Banjar Belega Kangin',
     ].join('\n');
 
     const blob = new Blob([barisCsv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'template_undangan_belega.csv');
+    link.setAttribute('download', 'template_daftar_undangan_desa.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -117,15 +118,20 @@ export function ImporCsv({ buka, tutup, onSelesaiImpor, daftarEksisting = [] }) 
         {/* Panduan & Tombol Unduh Template */}
         <div className="flex flex-col gap-2 rounded-xl bg-kertas p-4 text-xs text-tinta/80 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-semibold text-tinta">Ketentuan format berkas:</p>
-            <p>Kolom wajib: <span className="font-mono font-bold text-daun">nama</span>. Kolom opsional: <span className="font-mono">jabatan, instansi, hp</span>.</p>
+            <p className="font-semibold text-tinta">Format Kolom Excel / CSV:</p>
+            <p className="mt-0.5">
+              <span className="font-mono font-bold text-daun">No</span>,{' '}
+              <span className="font-mono font-bold text-daun">Nama</span>,{' '}
+              <span className="font-mono">Jabatan</span>,{' '}
+              <span className="font-mono">Instansi / Banjar</span> (Pemisah koma atau titik koma otomatis didukung).
+            </p>
           </div>
           <Tombol
             type="button"
             onClick={unduhTemplate}
             className="h-9 whitespace-nowrap rounded-lg border border-garis bg-white px-3 text-xs font-semibold text-daun shadow-sm hover:bg-garis/20"
           >
-            📥 Unduh Template CSV
+            📥 Unduh Contoh Template
           </Tombol>
         </div>
 
