@@ -75,6 +75,7 @@ Sebelum implementasi SIABDES Belega, daftar hadir rapat di Kantor Desa Belega di
 | Menambah diri sebagai undangan tambahan | ✓ | ✓ | ✓ |
 | Check-in (Tanda Tangan Digital & Foto Opsional) | ✓ | ✓ | ✓ |
 | Membuat, mengedit, & menduplikasi rapat | ✗ | ✓ | ✓ |
+| Menghapus data rapat permanen & berkas storage | ✗ | ✗ | ✓ |
 | Mengatur Penandatangan Laporan (Perbekel/Sekdes) | ✗ | ✓ | ✓ |
 | Impor CSV/XLSX & Bank Riwayat Undangan Unik | ✗ | ✓ | ✓ |
 | Manajemen Kehadiran & Batal Hadir (dengan Audit Log) | ✗ | ✓ | ✓ |
@@ -98,8 +99,9 @@ Sebelum implementasi SIABDES Belega, daftar hadir rapat di Kantor Desa Belega di
 
 2. **Manajemen Rapat & Penandatangan Dokumen Dinamis**:
    - Pembuatan rapat baru dengan kode unik 4 karakter alfanumerik bebas ambigu (tanpa `I, O, 0, 1`).
-   - Konfigurasi penandatangan laporan per rapat: *Nama Penandatangan, Jabatan, NIP, dan Lokasi Pengesahan* (default: I WAYAN SUDARSANA, S.Sos. - Perbekel Belega).
+   - Konfigurasi penandatangan laporan per rapat: *Nama Penandatangan, Jabatan, NIP, dan Lokasi Pengesahan* (Pelaksana Kegiatan, Sekretaris Desa, dan Perbekel Belega).
    - Status siklus hidup rapat: `draft` → `dibuka` → `ditutup`.
+   - **Fitur Hapus Rapat Khusus Administrator**: Pembersihan data rapat secara permanen yang otomatis membersihkan seluruh relasi undangan dan kehadiran (cascade), menghapus berkas fisik tanda tangan dan foto dari Supabase Storage `bukti`, serta mencatat transaksi ke audit log.
    - Paginasi dan tombol segarkan data pada daftar rapat.
 
 3. **Manajemen Undangan & Bank Riwayat Lintas Rapat**:
@@ -109,24 +111,23 @@ Sebelum implementasi SIABDES Belega, daftar hadir rapat di Kantor Desa Belega di
    - Paginasi data undangan pada panel operator.
 
 4. **Mode Kiosk & Registrasi Mandiri Offline-First**:
-   - Akses terkunci PIN 6 digit khusus operator.
-   - **Pencarian Cerdas**: Pencarian real-time debounce 200 ms toleran gelar adat/akademik.
-   - **Fitur "Lihat Daftar Nama Undangan"**: Modal dialog interaktif dengan daftar nama undangan dan paginasi agar peserta dapat memilih nama secara visual tanpa mengetik.
+   - Akses kiosk meja registrasi terkunci PIN 6 digit khusus operator.
+   - **Pencarian Cerdas & Daftar Lengkap**: Pencarian real-time debounce 200 ms serta modal dialog daftar seluruh undangan interaktif yang dapat diakses penuh baik di kiosk maupun mode mandiri ponsel via RPC `daftar_undangan_rapat`.
    - **Kanvas Tanda Tangan Halus**: Menggunakan kurva kuadratik berbasis Pointer Events dengan pemangkasan otomatis (*auto-crop*) dan kompresi transparan PNG.
-   - **Pengambilan Foto Berstandar Privasi**: Pratinjau kamera depan, kompresi JPEG 480×480 px (≤40 KB), bersifat opsional, disertai *consent banner* UU PDP.
+   - **Pengambilan Foto Wajah Otomatis dengan Timer 3 Detik**: Hitung mundur 3 detik otomatis saat kamera aktif disertai nada *beep* Web Audio API, overlay animasi membal, panduan posisi wajah, efek kilatan *flash*, dan tombol jepret instan/pembatalan.
    - **Kartu Bukti Hadir**: Menampilkan stempel dinas berputar −9°, jam check-in WITA, dan nomor urut kehadiran.
 
 5. **Keluaran Laporan Resmi & Ekspor**:
    - **Standar Cetak Kertas A4**: Format tata letak dokumen resmi berukuran A4 vertikal dengan margin presisi 2 cm (atas, bawah, kiri, kanan).
-   - Penomoran otomatis berulang (*page header*), penanda undangan tambahan (*), dan footer dokumen resmi.
-   - Blok tanda tangan basah / stempel Perbekel yang dinamis.
+   - Penomoran otomatis berulang (*page header*) dan format nama bersih tanpa tanda bintang.
+   - Blok pengesahan penandatanganan 3 pihak (Pelaksana, Sekdes, Perbekel).
    - Ekspor lembar rekapitulasi data kehadiran ke format Excel (XLSX).
 
 6. **Kepatuhan Privasi (UU 27/2022 PDP) & Log Audit**:
    - Pengaturan masa retensi foto kehadiran (default: 90 hari).
-   - Pembersihan foto otomatis dan manual sekali klik dengan penandaan audit.
+   - Pembersihan foto permanen dari Storage dan Basis Data via RPC `hapus_foto_rapat_admin` dan pemindaian storage langsung.
    - Halaman Kebijakan Privasi publik `/privasi`.
-   - Log Audit Keamanan interaktif dengan filter rentang waktu, filter aksi, dan paginasi tabel.
+   - Log Audit Keamanan interaktif dengan izin INSERT aman serta filter rentang waktu, filter aksi, dan paginasi tabel.
 
 7. **Keseragaman Antarmuka & Footer Sistem**:
    - Footer resmi terintegrasi di seluruh halaman utama, panel pengaturan, detail rapat, dan mode kiosk.
@@ -258,6 +259,12 @@ create table public.audit_log (
    Mengambil bank data nama, jabatan, instansi, dan nomor HP unik dari seluruh riwayat rapat untuk mempermudah penyusunan undangan baru.
 4. **`cari_undangan(p_kode, p_kueri)`**:
    Pencarian fuzzy undangan publik yang aman tanpa mengekspos nomor HP peserta.
+5. **`daftar_undangan_rapat(p_kode)`**:
+   Mengambil daftar seluruh nama, jabatan, instansi, dan status hadir undangan untuk modal pencarian kiosk dan mode mandiri ponsel tanpa mengekspos nomor HP peserta.
+6. **`hapus_foto_rapat_admin(p_rapat_id)`**:
+   Prosedur admin untuk menghapus berkas foto fisik dari Supabase Storage `bukti` serta mengosongkan `foto_path` kehadiran dan mencatat `foto_dihapus_pada`.
+7. **`adalah_admin()`**:
+   Fungsi helper keamanan skema public untuk validasi RLS role admin pada tabel profil, audit log, dan storage objects.
 
 ---
 
