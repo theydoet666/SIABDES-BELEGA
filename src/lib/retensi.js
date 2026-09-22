@@ -14,25 +14,79 @@ export async function hapusSemuaFotoRapat(rapat, judulKonfirmasi, userId) {
     throw new Error('Judul konfirmasi tidak cocok dengan judul rapat. Penghapusan dibatalkan.');
   }
 
-  // 1. Ambil seluruh foto_path kehadiran pada rapat ini
-  const { data: daftarKehadiran, error: errAmbil } = await supabase
-    .from('kehadiran')
-    .select('id, foto_path')
-    .eq('rapat_id', rapat.id)
-    .not('foto_path', 'is', null);
+  // Opsi 1: Coba jalankan fungsi server-side RPC hapus_foto_rapat_admin
+  try {
+    const { data: hasilRpc, error: errRpc } = await supabase.rpc('hapus_foto_rapat_admin', {
+      p_rapat_id: rapat.id,
+    });
 
-  if (errAmbil) {
-    console.error('Gagal mengambil daftar foto kehadiran:', errAmbil);
-    throw new Error('Gagal memeriksa data foto kehadiran di server.');
+    if (!errRpc && hasilRpc?.berhasil) {
+      return {
+        berhasil: true,
+        jumlahFotoDihapus: hasilRpc.jumlahFotoDihapus || 0,
+        waktuDihapus: hasilRpc.waktuDihapus || new Date().toISOString(),
+      };
+    }
+  } catch (rpcEx) {
+    console.warn('RPC hapus_foto_rapat_admin belum terpasang, beralih ke penghapusan client fallback:', rpcEx);
   }
 
-  const paths = (daftarKehadiran || []).map((k) => k.foto_path).filter(Boolean);
+  // Opsi 2: Client-side Fallback dengan Pemindaian Storage Langsung
+  const setPaths = new Set();
+
+  // 1a. Ambil foto_path dari tabel kehadiran
+  try {
+    const { data: daftarKehadiran } = await supabase
+      .from('kehadiran')
+      .select('id, foto_path')
+      .eq('rapat_id', rapat.id)
+      .not('foto_path', 'is', null);
+
+    (daftarKehadiran || []).forEach((k) => {
+      if (k.foto_path) setPaths.add(k.foto_path);
+    });
+  } catch (errDb) {
+    console.warn('Gagal membaca kehadiran dari DB:', errDb);
+  }
+
+  // 1b. Pindai langsung direktori folder storage rapat.id di bucket 'bukti'
+  try {
+    const { data: subFolders } = await supabase.storage
+      .from('bukti')
+      .list(rapat.id, { limit: 1000 });
+
+    if (subFolders && subFolders.length > 0) {
+      for (const item of subFolders) {
+        if (!item.id && item.name) {
+          // Subfolder (idUndangan)
+          const { data: filesInSub } = await supabase.storage
+            .from('bukti')
+            .list(`${rapat.id}/${item.name}`, { limit: 100 });
+
+          if (filesInSub && filesInSub.length > 0) {
+            for (const f of filesInSub) {
+              if (f.name.toLowerCase().includes('foto') || f.name.endsWith('.jpg') || f.name.endsWith('.jpeg')) {
+                setPaths.add(`${rapat.id}/${item.name}/${f.name}`);
+              }
+            }
+          }
+        } else if (item.name && (item.name.toLowerCase().includes('foto') || item.name.endsWith('.jpg') || item.name.endsWith('.jpeg'))) {
+          setPaths.add(`${rapat.id}/${item.name}`);
+        }
+      }
+    }
+  } catch (errScan) {
+    console.warn('Peringatan saat memindai storage folder rapat:', errScan);
+  }
+
+  const paths = Array.from(setPaths);
 
   // 2. Hapus objek file fisik dari Supabase Storage bucket 'bukti'
   if (paths.length > 0) {
     const { error: errHapusStorage } = await supabase.storage.from('bukti').remove(paths);
     if (errHapusStorage) {
-      console.warn('Peringatan saat menghapus berkas di storage:', errHapusStorage.message);
+      console.error('Galat saat menghapus berkas di storage:', errHapusStorage);
+      throw new Error(`Gagal menghapus berkas foto dari storage: ${errHapusStorage.message}`);
     }
   }
 

@@ -392,26 +392,55 @@ export function useRapat() {
     setMemuat(true);
     setGalat(null);
     try {
-      // 1. Ambil berkas bukti kehadiran (ttd_path dan foto_path) untuk dihapus dari storage
-      const { data: daftarKehadiran, error: errAmbilBerkas } = await supabase
+      const setBerkas = new Set();
+
+      // 1a. Ambil berkas bukti kehadiran (ttd_path dan foto_path) dari DB
+      const { data: daftarKehadiran } = await supabase
         .from('kehadiran')
         .select('ttd_path, foto_path')
         .eq('rapat_id', rapatId);
 
-      if (!errAmbilBerkas && daftarKehadiran?.length > 0) {
-        const berkasUntukDihapus = [];
+      if (daftarKehadiran && daftarKehadiran.length > 0) {
         for (const k of daftarKehadiran) {
-          if (k.ttd_path) berkasUntukDihapus.push(k.ttd_path);
-          if (k.foto_path) berkasUntukDihapus.push(k.foto_path);
+          if (k.ttd_path) setBerkas.add(k.ttd_path);
+          if (k.foto_path) setBerkas.add(k.foto_path);
         }
+      }
 
-        if (berkasUntukDihapus.length > 0) {
-          const { error: errHapusStorage } = await supabase.storage
-            .from('bukti')
-            .remove(berkasUntukDihapus);
-          if (errHapusStorage) {
-            console.warn('Peringatan saat menghapus berkas di storage:', errHapusStorage.message);
+      // 1b. Pindai folder storage rapatId di bucket bukti
+      try {
+        const { data: subFolders } = await supabase.storage
+          .from('bukti')
+          .list(rapatId, { limit: 1000 });
+
+        if (subFolders && subFolders.length > 0) {
+          for (const item of subFolders) {
+            if (!item.id && item.name) {
+              const { data: filesInSub } = await supabase.storage
+                .from('bukti')
+                .list(`${rapatId}/${item.name}`, { limit: 100 });
+
+              if (filesInSub && filesInSub.length > 0) {
+                for (const f of filesInSub) {
+                  setBerkas.add(`${rapatId}/${item.name}/${f.name}`);
+                }
+              }
+            } else if (item.name) {
+              setBerkas.add(`${rapatId}/${item.name}`);
+            }
           }
+        }
+      } catch (errScan) {
+        console.warn('Peringatan saat memindai storage saat hapus rapat:', errScan);
+      }
+
+      const berkasUntukDihapus = Array.from(setBerkas);
+      if (berkasUntukDihapus.length > 0) {
+        const { error: errHapusStorage } = await supabase.storage
+          .from('bukti')
+          .remove(berkasUntukDihapus);
+        if (errHapusStorage) {
+          console.warn('Peringatan saat menghapus berkas di storage:', errHapusStorage.message);
         }
       }
 
