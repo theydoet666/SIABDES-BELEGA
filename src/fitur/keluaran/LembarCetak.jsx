@@ -173,7 +173,6 @@ export default function LembarCetak() {
     );
   }
 
-  const adaTambahan = daftarPeserta.some((p) => p.sumber === 'tambahan');
   const totalHadir = daftarPeserta.filter((p) => p.sudahHadir).length;
 
   // Format tanggal khusus tanda tangan: "Belega, 15 September 2026"
@@ -348,7 +347,6 @@ export default function LembarCetak() {
                   {/* Kolom Nama */}
                   <td className="border-r border-black px-3 py-1.5">
                     <span className="font-bold">{peserta.nama}</span>
-                    {peserta.sumber === 'tambahan' && <span className="font-bold"> *</span>}
                     {peserta.kehadiran?.diwakiliOleh && (
                       <div className="text-[10px] italic font-sans text-gray-700">
                         (Diwakili: {peserta.kehadiran.diwakiliOleh})
@@ -393,11 +391,8 @@ export default function LembarCetak() {
           </tbody>
         </table>
 
-        {/* Catatan Bawah & Keterangan Tambahan */}
+        {/* Catatan Bawah & Keterangan Hadir */}
         <div className="mt-2 text-[10px] text-gray-700 space-y-0.5">
-          {adaTambahan && (
-            <p>*) Undangan tambahan di luar daftar undangan awal.</p>
-          )}
           <p className="font-sans text-gray-600">
             Total Undangan: {daftarPeserta.length} orang | Jumlah Hadir: {totalHadir} orang
           </p>

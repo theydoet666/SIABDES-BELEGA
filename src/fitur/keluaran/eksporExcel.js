@@ -69,7 +69,7 @@ function sanitasiFormula(val) {
   // 2. Masukkan Baris Peserta (dengan sanitasi formula injection)
   daftarPeserta.forEach((peserta, idx) => {
     const k = peserta.kehadiran;
-    const namaTampil = peserta.nama ? sanitasiFormula(peserta.nama) + (peserta.sumber === 'tambahan' ? ' (*)' : '') : '-';
+    const namaTampil = peserta.nama ? sanitasiFormula(peserta.nama) : '-';
 
     barisData.push([
       idx + 1,
@@ -93,7 +93,6 @@ function sanitasiFormula(val) {
   barisData.push(['Jumlah Hadir', hadir]);
   barisData.push(['Belum Hadir', belum]);
   barisData.push(['Tingkat Kehadiran', persentase]);
-  barisData.push(['Keterangan (*)', 'Undangan tambahan di tempat di luar daftar awal']);
 
   // Buat Sheet & Workbook
   const worksheet = XLSX.utils.aoa_to_sheet(barisData);
