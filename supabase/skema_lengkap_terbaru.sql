@@ -2395,3 +2395,137 @@ $$;
 revoke all on function public.admin_hapus_operator(uuid) from public;
 grant execute on function public.admin_hapus_operator(uuid) to authenticated;
 
+
+-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+-- BERKAS: 018_perbaikan_hapus_foto_storage.sql
+-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+-- 1. Perbaiki RLS Policy DELETE pada storage.objects agar memakai public.adalah_admin()
+drop policy if exists "admin menghapus bukti" on storage.objects;
+create policy "admin menghapus bukti" on storage.objects
+  for delete using (
+    bucket_id = 'bukti'
+    and (select public.adalah_admin())
+  );
+
+-- 2. Fungsi RPC Aman untuk Menghapus Seluruh Foto Rapat secara Permanen dari Storage & DB
+create or replace function public.hapus_foto_rapat_admin(p_rapat_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, storage
+as $$
+declare
+  v_count int := 0;
+  v_judul text;
+  v_kode text;
+begin
+  if not public.adalah_admin() then
+    raise exception 'Akses ditolak: Hanya administrator yang berhak menghapus berkas foto kehadiran.';
+  end if;
+
+  select judul, kode into v_judul, v_kode
+  from public.rapat
+  where id = p_rapat_id;
+
+  if v_judul is null then
+    raise exception 'Rapat tidak ditemukan.';
+  end if;
+
+  delete from storage.objects
+  where bucket_id = 'bukti'
+    and (
+      name like p_rapat_id || '/%/foto.jpg'
+      or name like p_rapat_id || '/%/foto.jpeg'
+      or name like p_rapat_id || '/%/foto.png'
+    );
+
+  get diagnostics v_count = row_count;
+
+  update public.kehadiran
+  set foto_path = null
+  where rapat_id = p_rapat_id;
+
+  update public.rapat
+  set foto_dihapus_pada = now()
+  where id = p_rapat_id;
+
+  insert into public.audit_log (aktor, aksi, tabel, baris_id, rincian)
+  values (
+    auth.uid(),
+    'HAPUS_FOTO_MANUAL',
+    'rapat',
+    p_rapat_id::text,
+    jsonb_build_object(
+      'rapat_id', p_rapat_id,
+      'judul_rapat', v_judul,
+      'kode_rapat', v_kode,
+      'jumlah_foto_dihapus', v_count,
+      'alasan', 'Penghapusan foto manual oleh administrator desa',
+      'waktu_eksekusi', now()
+    )
+  );
+
+  return jsonb_build_object(
+    'berhasil', true,
+    'jumlahFotoDihapus', v_count,
+    'waktuDihapus', now()
+  );
+end;
+$$;
+
+revoke all on function public.hapus_foto_rapat_admin(uuid) from public;
+grant execute on function public.hapus_foto_rapat_admin(uuid) to authenticated;
+
+
+-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+-- BERKAS: 019_rpc_daftar_undangan_publik.sql
+-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+-- 1. Kebijakan RLS agar pengguna publik dapat membaca daftar undangan pada rapat yang dibuka/ditutup
+drop policy if exists "siapapun boleh membaca undangan rapat dibuka" on undangan;
+create policy "siapapun boleh membaca undangan rapat dibuka" on undangan
+  for select using (
+    exists (
+      select 1 from public.rapat r
+      where r.id = undangan.rapat_id
+        and r.status in ('dibuka', 'ditutup')
+    )
+  );
+
+-- 2. Fungsi RPC Aman untuk mengambil seluruh daftar undangan rapat (tanpa kolom nomor HP privasi)
+create or replace function public.daftar_undangan_rapat(p_kode text)
+returns table (
+  id uuid,
+  nama text,
+  jabatan text,
+  instansi text,
+  sumber text,
+  sudah_hadir boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    u.id,
+    u.nama,
+    coalesce(u.jabatan, '') as jabatan,
+    coalesce(u.instansi, '') as instansi,
+    u.sumber::text as sumber,
+    exists (
+      select 1 from public.kehadiran k
+      where k.undangan_id = u.id and k.dibatalkan = false
+    ) as sudah_hadir
+  from public.undangan u
+  join public.rapat r on r.id = u.rapat_id
+  where upper(r.kode) = upper(p_kode)
+    and r.status in ('dibuka', 'ditutup')
+  order by u.urutan asc nulls last, u.nama asc;
+$$;
+
+revoke all on function public.daftar_undangan_rapat(text) from public;
+grant execute on function public.daftar_undangan_rapat(text) to anon, authenticated;
+
+

@@ -99,21 +99,43 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
 
       setRapatDaring(dataRapat);
 
-      // 2. Ambil daftar undangan dari Supabase (jika diizinkan oleh RLS)
+      // 2. Ambil daftar undangan dari Supabase (dukung query langsung & RPC publik)
       let dataUndangan = [];
       if (dataRapat.id) {
-        const { data: dataUndanganQuery } = await supabase
-          .from('undangan')
-          .select(`
-            id, nama, jabatan, instansi, hp, sumber,
-            kehadiran (
-              id, dibatalkan
-            )
-          `)
-          .eq('rapat_id', dataRapat.id);
+        try {
+          const { data: dataUndanganQuery } = await supabase
+            .from('undangan')
+            .select(`
+              id, nama, jabatan, instansi, sumber,
+              kehadiran (
+                id, dibatalkan
+              )
+            `)
+            .eq('rapat_id', dataRapat.id)
+            .order('urutan', { ascending: true });
 
-        if (Array.isArray(dataUndanganQuery)) {
-          dataUndangan = dataUndanganQuery;
+          if (Array.isArray(dataUndanganQuery) && dataUndanganQuery.length > 0) {
+            dataUndangan = dataUndanganQuery;
+          }
+        } catch (errQ) {
+          console.warn('Gagal query langsung tabel undangan:', errQ);
+        }
+      }
+
+      // Fallback untuk Mode Mandiri / peserta anonim via RPC daftar_undangan_rapat
+      if (dataUndangan.length === 0) {
+        try {
+          const { data: rpcUndangan, error: rpcErr } = await supabase
+            .rpc('daftar_undangan_rapat', { p_kode: kodeUpper });
+
+          if (!rpcErr && Array.isArray(rpcUndangan) && rpcUndangan.length > 0) {
+            dataUndangan = rpcUndangan.map((u) => ({
+              ...u,
+              kehadiran: u.sudah_hadir ? [{ id: 'hadir', dibatalkan: false }] : [],
+            }));
+          }
+        } catch (e) {
+          console.warn('Gagal memuat RPC daftar_undangan_rapat:', e);
         }
       }
 
@@ -165,7 +187,7 @@ export default function AlurCheckin({ jalur = 'kiosk' }) {
           const directHadir = Boolean(u.kehadiran?.some((k) => !k.dibatalkan));
           const idHadir = setIdHadirServer.has(u.id);
           const namaHadir = u.nama && daftarNamaHadirServer.some((nHadir) => apakahNamaSama(nHadir, u.nama));
-          const sudahHadir = Boolean(directHadir || idHadir || namaHadir);
+          const sudahHadir = Boolean(directHadir || idHadir || namaHadir || u.sudah_hadir);
 
           return {
             ...u,
