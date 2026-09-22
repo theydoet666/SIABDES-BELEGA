@@ -11,7 +11,7 @@ import { ImporCsv } from '../undangan/ImporCsv.jsx';
 import { ModalPilihUndanganRiwayat } from '../undangan/ModalPilihUndanganRiwayat.jsx';
 import { ModalEditRapat } from './ModalEditRapat.jsx';
 import { PanelPerluDitinjau } from '../dashboard/PanelPerluDitinjau.jsx';
-import { formatTanggal, formatJam, formatRentangWaktu } from '../../lib/format.js';
+import { formatTanggal, formatRentangWaktu } from '../../lib/format.js';
 import { hapusSemuaFotoRapat } from '../../lib/retensi.js';
 import { Lencana } from '../../komponen/umum/Lencana.jsx';
 import { Pemuat } from '../../komponen/umum/Pemuat.jsx';
@@ -29,7 +29,7 @@ export default function DetailRapat() {
   const { profil } = useAuth();
   const { pengaturan } = usePengaturan();
 
-  const { ambilDetailRapat, ubahRapat, ubahStatusRapat, memuat: memuatRapat } = useRapat();
+  const { ambilDetailRapat, ubahRapat, ubahStatusRapat, hapusRapat, memuat: memuatRapat } = useRapat();
   const {
     daftarUndangan,
     muatUndangan,
@@ -49,6 +49,7 @@ export default function DetailRapat() {
   const [bukaModalHapusFoto, setBukaModalHapusFoto] = useState(false);
   const [judulKonfirmasiHapus, setJudulKonfirmasiHapus] = useState('');
   const [sedangHapusFoto, setSedangHapusFoto] = useState(false);
+  const [sedangHapusRapat, setSedangHapusRapat] = useState(false);
   const [undanganSedangDiedit, setUndanganSedangDiedit] = useState(null);
   const [sedangUbahStatus, setSedangUbahStatus] = useState(false);
   const [sedangSegarkan, setSedangSegarkan] = useState(false);
@@ -152,6 +153,34 @@ export default function DetailRapat() {
       await notifikasiSukses('Undangan Dihapus', `Data "${nama}" berhasil dihapus.`);
     } catch (err) {
       await notifikasiGalat('Gagal Menghapus', err.message || 'Gagal menghapus data undangan.');
+    }
+  };
+
+  const tanganiHapusRapat = async () => {
+    if (!rapat) return;
+    const setuju = await konfirmasiAksi({
+      judul: 'Hapus Rapat?',
+      pesan: `Apakah Anda yakin ingin menghapus rapat <strong>"${rapat.judul}"</strong>? Seluruh daftar undangan, kehadiran, dan bukti tanda tangan akan dihapus permanen.`,
+      teksKonfirmasi: 'Ya, Hapus Rapat',
+      teksBatal: 'Batal',
+      tombolBahaya: true,
+    });
+
+    if (!setuju) return;
+
+    try {
+      setSedangHapusRapat(true);
+      await hapusRapat(
+        rapat.id,
+        { judul: rapat.judul, kode: rapat.kode },
+        profil?.id
+      );
+      await notifikasiSukses('Rapat Dihapus', `Rapat "${rapat.judul}" berhasil dihapus.`);
+      navigate('/rapat', { replace: true });
+    } catch (err) {
+      await notifikasiGalat('Gagal Menghapus', err.message || 'Gagal menghapus rapat.');
+    } finally {
+      setSedangHapusRapat(false);
     }
   };
 
@@ -261,7 +290,19 @@ export default function DetailRapat() {
                     title="Hapus foto kehadiran rapat ini permanen (Kepatuhan UU PDP)"
                     className="rounded-lg border border-red-200 bg-red-50/50 px-2.5 py-0.5 text-[11px] font-bold text-red-700 hover:bg-red-100 transition"
                   >
-                    🗑️ Hapus Foto Rapat
+                    🗑️ Hapus Foto
+                  </button>
+                )}
+
+                {profil?.peran === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={tanganiHapusRapat}
+                    disabled={sedangHapusRapat}
+                    title="Hapus rapat ini secara permanen (Khusus Admin)"
+                    className="rounded-lg border border-red-300 bg-red-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs hover:bg-red-700 active:scale-95 transition disabled:opacity-50"
+                  >
+                    {sedangHapusRapat ? 'Menghapus...' : '🗑️ Hapus Rapat'}
                   </button>
                 )}
               </div>

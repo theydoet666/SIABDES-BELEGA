@@ -9,7 +9,7 @@ import { Lencana } from '../../komponen/umum/Lencana.jsx';
 import { Pemuat } from '../../komponen/umum/Pemuat.jsx';
 import { Tombol } from '../../komponen/umum/Tombol.jsx';
 
-import { konfirmasiAksi, notifikasiGalat } from '../../lib/notifikasi.js';
+import { konfirmasiAksi, notifikasiSukses, notifikasiGalat } from '../../lib/notifikasi.js';
 import { ModalUbahKataSandi } from '../auth/ModalUbahKataSandi.jsx';
 
 export default function DaftarRapat() {
@@ -18,13 +18,14 @@ export default function DaftarRapat() {
   const [filterStatus, setFilterStatus] = useState('semua');
   const [kueriCari, setKueriCari] = useState('');
   const [sedangDuplikasiId, setSedangDuplikasiId] = useState(null);
+  const [sedangHapusId, setSedangHapusId] = useState(null);
   const [bukaModalSandi, setBukaModalSandi] = useState(false);
 
   // State untuk Paging (Penomoran Halaman)
   const [halamanAktif, setHalamanAktif] = useState(1);
   const [itemPerHalaman] = useState(6); // 6 kartu per halaman (2 baris x 3 kolom)
 
-  const { ambilSemuaRapat, duplikasiRapat, memuat, galat } = useRapat();
+  const { ambilSemuaRapat, duplikasiRapat, hapusRapat, memuat, galat } = useRapat();
   const { pengguna, profil, keluar } = useAuth();
   const { pengaturan } = usePengaturan();
   const navigate = useNavigate();
@@ -47,8 +48,8 @@ export default function DaftarRapat() {
     setHalamanAktif(1);
   }, [filterTahun, filterStatus, kueriCari]);
 
-  const tanganiDuplikasi = async (e, id) => {
-    e.stopPropagation();
+  const tanganiDuplikasi = async (rapatItem) => {
+    const id = rapatItem.id;
     const setuju = await konfirmasiAksi({
       judul: 'Duplikasi Rapat?',
       pesan: 'Rapat baru akan dibuat dengan tanggal hari ini dan menyalin seluruh daftar undangan.',
@@ -60,12 +61,39 @@ export default function DaftarRapat() {
 
     try {
       setSedangDuplikasiId(id);
-      const rapatBaru = await duplikasiRapat(id, pengguna?.id);
-      navigate(`/rapat/${rapatBaru.id}`);
+      const rapatBaru = await duplikasiRapat(id, rapatItem, pengguna?.id);
+      navigate(`/rapat/${rapatBaru?.id || rapatBaru}`);
     } catch (err) {
       await notifikasiGalat('Gagal Duplikasi', err.message || 'Gagal menduplikasi rapat.');
     } finally {
       setSedangDuplikasiId(null);
+    }
+  };
+
+  const tanganiHapusRapat = async (rapatItem) => {
+    const setuju = await konfirmasiAksi({
+      judul: 'Hapus Rapat?',
+      pesan: `Apakah Anda yakin ingin menghapus rapat <strong>"${rapatItem.judul}"</strong>? Seluruh daftar undangan, kehadiran, dan bukti tanda tangan akan dihapus permanen.`,
+      teksKonfirmasi: 'Ya, Hapus Rapat',
+      teksBatal: 'Batal',
+      tombolBahaya: true,
+    });
+
+    if (!setuju) return;
+
+    try {
+      setSedangHapusId(rapatItem.id);
+      await hapusRapat(
+        rapatItem.id,
+        { judul: rapatItem.judul, kode: rapatItem.kode },
+        pengguna?.id
+      );
+      await notifikasiSukses('Rapat Dihapus', `Rapat "${rapatItem.judul}" berhasil dihapus.`);
+      await muatData();
+    } catch (err) {
+      await notifikasiGalat('Gagal Menghapus', err.message || 'Gagal menghapus rapat.');
+    } finally {
+      setSedangHapusId(null);
     }
   };
 
@@ -302,14 +330,28 @@ export default function DaftarRapat() {
 
                     {/* Tombol Aksi */}
                     <div className="mt-6 flex items-center justify-between border-t border-garis pt-4">
-                      <button
-                        type="button"
-                        onClick={() => tanganiDuplikasi(rapat)}
-                        disabled={sedangDuplikasiId === rapat.id}
-                        className="text-xs font-semibold text-tinta/70 hover:text-tinta disabled:opacity-50"
-                      >
-                        {sedangDuplikasiId === rapat.id ? 'Menyalin...' : 'Duplikasi'}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => tanganiDuplikasi(rapat)}
+                          disabled={sedangDuplikasiId === rapat.id || sedangHapusId === rapat.id}
+                          className="text-xs font-semibold text-tinta/70 hover:text-tinta disabled:opacity-50"
+                        >
+                          {sedangDuplikasiId === rapat.id ? 'Menyalin...' : 'Duplikasi'}
+                        </button>
+
+                        {profil?.peran === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => tanganiHapusRapat(rapat)}
+                            disabled={sedangDuplikasiId === rapat.id || sedangHapusId === rapat.id}
+                            className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-50 transition"
+                            title="Hapus rapat secara permanen (Khusus Admin)"
+                          >
+                            {sedangHapusId === rapat.id ? 'Menghapus...' : 'Hapus'}
+                          </button>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-2">
                         {rapat.status === 'dibuka' && (

@@ -8,30 +8,47 @@ export function AmbilFoto({ onFotoDiambil, onLewatiFoto }) {
   const [pesanGalatKamera, setPesanGalatKamera] = useState('');
   const [sedangMenyiapkan, setSedangMenyiapkan] = useState(false);
 
+  // State untuk timer hitung mundur 3 detik & efek visual
+  const [hitungMundur, setHitungMundur] = useState(null);
+  const [apakahKilat, setApakahKilat] = useState(false);
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
+  const intervalTimerRef = useRef(null);
+
+  // Bersihkan timer yang sedang berjalan
+  const bersihkanTimer = useCallback(() => {
+    if (intervalTimerRef.current) {
+      clearInterval(intervalTimerRef.current);
+      intervalTimerRef.current = null;
+    }
+    setHitungMundur(null);
+  }, []);
 
   // Hentikan stream kamera segera (FT-07)
   const hentikanKamera = useCallback(() => {
+    bersihkanTimer();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     setKameraAktif(false);
-  }, []);
+  }, [bersihkanTimer]);
 
-  // Pastikan kamera selalu mati saat komponen unmount (FT-07)
+  // Pastikan kamera dan timer selalu dibersihkan saat unmount
   useEffect(() => {
     return () => {
+      bersihkanTimer();
       hentikanKamera();
     };
-  }, [hentikanKamera]);
+  }, [bersihkanTimer, hentikanKamera]);
 
   // Nyalakan kamera depan setelah peserta menyetujui pemberitahuan privasi (FT-01, FT-06)
   const aktifkanKamera = async () => {
     setPesanGalatKamera('');
     setSedangMenyiapkan(true);
+    bersihkanTimer();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -63,14 +80,41 @@ export function AmbilFoto({ onFotoDiambil, onLewatiFoto }) {
     }
   };
 
-  // Jepret foto dari stream video
-  const jepretFoto = () => {
+  // Jepret foto dari stream video seketika
+  const eksekusiJepret = useCallback(() => {
     if (!videoRef.current) return;
+
+    // Efek kilatan kamera (flash)
+    setApakahKilat(true);
+    setTimeout(() => setApakahKilat(false), 200);
+
     const dataUrl = kompresFotoWajah(videoRef.current, 480, 0.65);
     if (dataUrl) {
       setFotoTersimpan(dataUrl);
       hentikanKamera(); // Hentikan kamera segera setelah jepretan (FT-07)
     }
+  }, [hentikanKamera]);
+
+  // Mulai hitung mundur 3 detik sebelum menjepret foto
+  const mulaiHitungMundur = () => {
+    bersihkanTimer();
+    let sisaDetik = 3;
+    setHitungMundur(sisaDetik);
+
+    intervalTimerRef.current = setInterval(() => {
+      sisaDetik -= 1;
+      if (sisaDetik > 0) {
+        setHitungMundur(sisaDetik);
+      } else {
+        bersihkanTimer();
+        eksekusiJepret();
+      }
+    }, 1000);
+  };
+
+  // Batalkan hitung mundur
+  const batalkanHitungMundur = () => {
+    bersihkanTimer();
   };
 
   // Ambil ulang foto (FT-03)
@@ -134,26 +178,84 @@ export function AmbilFoto({ onFotoDiambil, onLewatiFoto }) {
               autoPlay
               className="h-full w-full object-cover -scale-x-100"
             />
+
+            {/* Bingkai Panduan Wajah Halus */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="h-48 w-40 rounded-[50%] border-2 border-dashed border-white/40" />
+            </div>
+
+            {/* Overlay Animasi Hitung Mundur 3 Detik */}
+            {hitungMundur !== null && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs transition-all">
+                <div
+                  key={hitungMundur}
+                  className="flex h-24 w-24 scale-105 animate-bounce items-center justify-center rounded-full bg-white/90 text-5xl font-black text-daun shadow-2xl transition-all"
+                >
+                  {hitungMundur}
+                </div>
+                <span className="mt-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white shadow">
+                  Bersiap... Tersenyum 😊
+                </span>
+              </div>
+            )}
+
+            {/* Efek Kilatan Flash Saat Menjepret */}
+            {apakahKilat && (
+              <div className="absolute inset-0 bg-white opacity-95 transition-opacity" />
+            )}
           </div>
 
-          <div className="flex w-full gap-2">
-            <Tombol
-              type="button"
-              onClick={jepretFoto}
-              className="h-12 flex-1 rounded-xl bg-daun text-sm font-bold text-kertas shadow transition hover:bg-daun-tua focus:ring-2 focus:ring-daun"
-            >
-              📸 Ambil Foto
-            </Tombol>
-            <Tombol
-              type="button"
-              onClick={() => {
-                hentikanKamera();
-                onLewatiFoto();
-              }}
-              className="h-12 rounded-xl border border-garis bg-white px-4 text-xs font-semibold text-tinta hover:bg-kertas"
-            >
-              Lewati
-            </Tombol>
+          {/* Tombol Kontrol Kamera */}
+          <div className="flex w-full flex-col gap-2">
+            {hitungMundur !== null ? (
+              <div className="flex w-full gap-2">
+                <Tombol
+                  type="button"
+                  onClick={batalkanHitungMundur}
+                  className="h-12 flex-1 rounded-xl border border-red-300 bg-red-50 text-xs font-bold text-red-700 shadow-xs hover:bg-red-100 active:scale-95 transition"
+                >
+                  ⏹️ Batal Timer ({hitungMundur}s)
+                </Tombol>
+                <Tombol
+                  type="button"
+                  onClick={() => {
+                    bersihkanTimer();
+                    eksekusiJepret();
+                  }}
+                  className="h-12 rounded-xl bg-daun px-4 text-xs font-bold text-kertas shadow transition hover:bg-daun-tua active:scale-95"
+                >
+                  ⚡ Langsung
+                </Tombol>
+              </div>
+            ) : (
+              <div className="flex w-full gap-2">
+                <Tombol
+                  type="button"
+                  onClick={mulaiHitungMundur}
+                  className="h-12 flex-1 rounded-xl bg-daun text-sm font-bold text-kertas shadow transition hover:bg-daun-tua focus:ring-2 focus:ring-daun active:scale-95"
+                >
+                  ⏱️ Ambil Foto (3s)
+                </Tombol>
+                <Tombol
+                  type="button"
+                  onClick={eksekusiJepret}
+                  className="h-12 rounded-xl border border-garis bg-white px-3.5 text-xs font-semibold text-tinta hover:bg-kertas active:scale-95"
+                  title="Ambil foto instan tanpa timer"
+                >
+                  📸 Langsung
+                </Tombol>
+                <Tombol
+                  type="button"
+                  onClick={() => {
+                    hentikanKamera();
+                    onLewatiFoto();
+                  }}
+                  className="h-12 rounded-xl border border-garis bg-white px-3.5 text-xs font-semibold text-tinta/70 hover:bg-kertas"
+                >
+                  Lewati
+                </Tombol>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -233,3 +335,4 @@ export function AmbilFoto({ onFotoDiambil, onLewatiFoto }) {
     </div>
   );
 }
+

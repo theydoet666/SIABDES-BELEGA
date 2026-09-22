@@ -235,20 +235,21 @@ export function useRapat() {
 
       if (hasil.error) {
         if (hasil.error.code === 'PGRST204' || hasil.error.message?.includes('schema cache')) {
-          console.warn('Kolom penandatangan 3 pihak belum ada di database Supabase, menggunakan fallback kompatibilitas...');
-          const {
-            ttd_pelaksana_jabatan,
-            ttd_pelaksana_nama,
-            ttd_sekdes_jabatan,
-            ttd_sekdes_nama,
-            ttd_perbekel_jabatan,
-            ttd_perbekel_nama,
-            penandatangan_nama,
-            penandatangan_jabatan,
-            penandatangan_nip,
-            penandatangan_lokasi,
-            ...dataKompatibel
-          } = dataForm;
+          const kolomAbaikan = new Set([
+            'ttd_pelaksana_jabatan',
+            'ttd_pelaksana_nama',
+            'ttd_sekdes_jabatan',
+            'ttd_sekdes_nama',
+            'ttd_perbekel_jabatan',
+            'ttd_perbekel_nama',
+            'penandatangan_nama',
+            'penandatangan_jabatan',
+            'penandatangan_nip',
+            'penandatangan_lokasi',
+          ]);
+          const dataKompatibel = Object.fromEntries(
+            Object.entries(dataForm).filter(([k]) => !kolomAbaikan.has(k))
+          );
 
           hasil = await supabase
             .from('rapat')
@@ -386,6 +387,75 @@ export function useRapat() {
     }
   };
 
+  // Hapus rapat secara permanen beserta seluruh berkas terkait (khusus Admin)
+  const hapusRapat = async (rapatId, infoRapat = {}, userId = null) => {
+    setMemuat(true);
+    setGalat(null);
+    try {
+      // 1. Ambil berkas bukti kehadiran (ttd_path dan foto_path) untuk dihapus dari storage
+      const { data: daftarKehadiran, error: errAmbilBerkas } = await supabase
+        .from('kehadiran')
+        .select('ttd_path, foto_path')
+        .eq('rapat_id', rapatId);
+
+      if (!errAmbilBerkas && daftarKehadiran?.length > 0) {
+        const berkasUntukDihapus = [];
+        for (const k of daftarKehadiran) {
+          if (k.ttd_path) berkasUntukDihapus.push(k.ttd_path);
+          if (k.foto_path) berkasUntukDihapus.push(k.foto_path);
+        }
+
+        if (berkasUntukDihapus.length > 0) {
+          const { error: errHapusStorage } = await supabase.storage
+            .from('bukti')
+            .remove(berkasUntukDihapus);
+          if (errHapusStorage) {
+            console.warn('Peringatan saat menghapus berkas di storage:', errHapusStorage.message);
+          }
+        }
+      }
+
+      // 2. Hapus baris dari tabel rapat (cascade ke undangan & kehadiran)
+      const { error: errHapusRapat } = await supabase
+        .from('rapat')
+        .delete()
+        .eq('id', rapatId);
+
+      if (errHapusRapat) throw errHapusRapat;
+
+      // 3. Catat ke audit log
+      try {
+        await supabase.from('audit_log').insert({
+          aktor: userId || null,
+          aksi: 'HAPUS_RAPAT',
+          tabel: 'rapat',
+          baris_id: rapatId,
+          rincian: {
+            judul_rapat: infoRapat.judul || null,
+            kode_rapat: infoRapat.kode || null,
+            waktu_eksekusi: new Date().toISOString(),
+          },
+        });
+      } catch (errAudit) {
+        console.warn('Gagal mencatat ke audit log:', errAudit);
+      }
+
+      // 4. Bersihkan cache lokal penandatangan
+      try {
+        localStorage.removeItem(`siabdes_ttd_rapat_${rapatId}`);
+      } catch (errLs) {
+        console.warn('Gagal membersihkan cache lokal:', errLs);
+      }
+
+      return true;
+    } catch (err) {
+      console.error(err);
+      throw new Error(err.message || 'Gagal menghapus rapat. Pastikan Anda memiliki hak akses administrator.');
+    } finally {
+      setMemuat(false);
+    }
+  };
+
   return {
     memuat,
     galat,
@@ -395,5 +465,7 @@ export function useRapat() {
     ubahRapat,
     ubahStatusRapat,
     duplikasiRapat,
+    hapusRapat,
   };
 }
+
